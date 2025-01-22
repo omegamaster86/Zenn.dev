@@ -21,4 +21,8 @@ useEffectでデータ取得/更新は皆さんしていないと思いますが�
 しかし、App Routerを使用しているのにServer Actionsをしていないとは何事だ！
 と思ったので、今回はServer Actionsを使用してデータ取得/更新をする方法を紹介します。
 
-# Server Actionsとは
+# そもそもServer Actionsとは
+「バカにするな〜」という声が聞こえてきそうですが、私の復習のためにもお付き合いください！
+一言で言うと「Server Actionsは、サーバー上で実行される非同期関数です。 Next.jsアプリケーションのフォーム送信やデータ変異を処理するために、サーバーコンポーネントやクライアントコンポーネントで呼び出すことができます。」
+https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations
+
