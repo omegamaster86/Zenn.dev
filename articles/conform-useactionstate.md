@@ -2,7 +2,7 @@
 title: "Server Actionsに使用するConform（ライブラリ）とuseActionState"
 emoji: "🗒️"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["javascript", "ecmascript"]
+topics: ["javascript", "react", "Next.js", "Server Actions" , "Conform"]
 published: true
 published_at: 2025-01-27 11:00
 ---
