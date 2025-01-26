@@ -3,7 +3,8 @@ title: "Server Actionsに使用するConform（ライブラリ）とuseActionSta
 emoji: "🗒️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["javascript", "ecmascript"]
-published: false
+published: true
+published_at: 2025-01-27 11:00
 ---
 
 # 初めに
@@ -96,11 +97,11 @@ react-hook-formでServerActionsをサポートしていなかった場合下記�
 
 # ServerActions対応なformライブラリのconform
 [conform公式](https://ja.conform.guide/)に記載してあるの特徴
-- Progressive enhancement first APIs
-- Type-safe field inference
-- Fine-grained subscription
-- Built-in accessibility helpers
-- Automatic type coercion with Zod
+- プログレッシブエンハンスメント・ファーストな API
+- 型安全なフィールド推論
+- きめ細やかなサブスクリプション
+- 組み込みのアクセシビリティ・ヘルパー
+- Zod による自動型強制
 
 ありがたいことに公式サイトにNext.jsとconformの実装例があります。
 ここからは公式サイトのコードを拝借しながらやっていきたいと思います。
@@ -122,7 +123,7 @@ export const loginSchema = z.object({
   remember: z.boolean().optional(),
 });
 ```
-Server Actionは@conform-to/zodのparseWithZodを利用することで以下のように書くことができます。
+Server Actionは@conform-to/zodのparseWithZodを利用することで下記のように記載できます。
 parseWithZod関数を使用すると、Zodスキーマを使用してFormDataを解析し、フォームの入力値をバリデーションできます。
 ```:action.ts
 'use server';
@@ -139,10 +140,37 @@ export async function login(prevState: unknown, formData: FormData) {
   if (submission.status !== 'success') {
     return submission.reply();
   }
+  // データベース更新系の処理もここに記載可能
+  // データ不整合の場合とかは下記のようにエラーメッセージを返せます。
+  return submission.reply({
+    formErrors: ["エラーメッセージ1", "エラーメッセージ2"],
+  });
 
   redirect('/dashboard');
 }
 ```
+useFormStateは、フォーム送信結果やサーバーサイドで処理されたアクションの状態（成功・失敗など）を管理するためのフックです。
+下記のコードでは、loginアクションの送信結果を取得し、その状態をlastResultとして保持しています。
+フォームの送信が完了すると、lastResultが更新され、結果（エラーや成功メッセージ）が反映されます。
+`lastResult`:サーバーアクションの結果（例: エラーメッセージや成功レスポンス）を保持。
+`action`:サーバーアクション（login）をトリガーするためのaction属性値。
+
+useFormは、フォームの状態管理やバリデーションロジックをクライアントサイドで実装するためのフックです。このフックを利用することで、フィールドの状態やエラーメッセージを動的に管理できます。
+今回での挙動
+フォームの状態を生成
+useFormが返すformオブジェクトには、フォーム全体の状態やイベントハンドラ（例: onSubmit）が含まれています。
+
+フィールドごとの状態管理
+fieldsオブジェクトには、フォーム内の各フィールドのキー、名前、初期値、エラーメッセージが含まれています。
+
+クライアントサイドバリデーション
+onValidateで、parseWithZodを使ったZodスキーマバリデーションを実行。
+バリデーション結果がエラーの場合、エラー情報がfieldsに反映されます。
+
+再バリデーションのタイミング
+`shouldValidate: 'onBlur'`: フィールドをフォーカスアウトしたときにバリデーションを実行。
+`shouldRevalidate: 'onInput'`: 入力値が変更されたときに再バリデーションを実行。
+
 
 ```:form.tsx
 'use client';
@@ -158,6 +186,7 @@ export function LoginForm() {
   const [form, fields] = useForm({
     lastResult,
 
+    // クライアントでバリデーション・ロジックを再利用する
     onValidate({ formData }) {
       return parseWithZod(formData, { schema: loginSchema });
     },
@@ -204,3 +233,6 @@ export function LoginForm() {
   );
 }
 ```
+
+# 最後に
+この記事が誰かの役にたてば幸いです。
