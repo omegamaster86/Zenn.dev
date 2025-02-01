@@ -49,6 +49,46 @@ Web開発では、メタデータは Web ページに関する追加の詳細を
 - **キーワード メタデータ**: このメタデータには、Web ページのコンテンツに関連するキーワードが含まれており、検索エンジンがページをインデックスするのに役立ちます。
 - **Open Graph メタデータ**: このメタデータは、タイトル、説明、プレビュー画像などの情報を提供することで、ソーシャルメディアプラットフォームで共有されるときにWebページが表示される方法を強化します。
 - **ファビコン メタデータ**: このメタデータは、ブラウザのアドレス バーまたはタブに表示されるファビコン (小さなアイコン) を Web ページにリンクします。
+[公式サイト](https://nextjs.org/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png)よりファビコンの設定はファイルでもできるようです
+```
+import { ImageResponse } from 'next/og'
+ 
+// Image metadata
+export const size = {
+  width: 32,
+  height: 32,
+}
+export const contentType = 'image/png'
+ 
+// Image generation
+export default function Icon() {
+  return new ImageResponse(
+    (
+      // ImageResponse JSX element
+      <div
+        style={{
+          fontSize: 24,
+          background: 'black',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+        }}
+      >
+        A
+      </div>
+    ),
+    // ImageResponse options
+    {
+      // For convenience, we can re-use the exported icons size metadata
+      // config to also set the ImageResponse's width and height.
+      ...size,
+    }
+  )
+}
+```
 
 |プロパティ|役割|影響する範囲|
 |---|---|---|
@@ -143,7 +183,7 @@ export const metadata = {
 ### メタデータを動的に生成する
 最後に、ページの読み込み時にメタデータ値を生成する場合は、generateMetadata()関数を使用して値を動的に設定できます。これは、ページ テンプレートが、読み込まれたデータに応じて異なる方法でレンダリングされる状況で使用されます。
 
-ブログを例にすると、通常、すべての投稿をレンダリングするために使用されるページ テンプレートが 1 つあり、投稿スラッグがページ パラメータとして渡されます。次のスニペットは、このアプローチがどのように機能するかを示しています。スラッグは、そのページのメタデータを生成する前に、API から投稿のデータを取得するために使用されます。
+ブログを例にすると、通常、すべての投稿をレンダリングするために使用されるページ テンプレートが1つあり、投稿スラッグがページ パラメータとして渡されます。次のスニペットは、このアプローチがどのように機能するかを示しています。スラッグは、そのページのメタデータを生成する前に、API から投稿のデータを取得するために使用されます。
 ```
 export async function generateMetadata({ params }) {
   const res = await fetch(`/api/posts/${params.slug}`)
@@ -203,47 +243,29 @@ export async function generateMetadata({ params }) {
 keywords関数内で値が明示的に定義されていない場合でも、ブログ投稿に値が設定されます。
 generateMetadataこれは、値が存在する場合にのみ、子メタデータが親メタデータを上書きするためです。
 
-# おまけ
-[公式サイト](https://nextjs.org/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png)よりファビコンの設定はファイルでもできるようです
+### 動的なタイトルのテンプレートを設定する場合
 ```
-import { ImageResponse } from 'next/og'
- 
-// Image metadata
-export const size = {
-  width: 32,
-  height: 32,
-}
-export const contentType = 'image/png'
- 
-// Image generation
-export default function Icon() {
-  return new ImageResponse(
-    (
-      // ImageResponse JSX element
-      <div
-        style={{
-          fontSize: 24,
-          background: 'black',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-        }}
-      >
-        A
-      </div>
-    ),
-    // ImageResponse options
-    {
-      // For convenience, we can re-use the exported icons size metadata
-      // config to also set the ImageResponse's width and height.
-      ...size,
-    }
-  )
-}
+export const metadata: Metadata = {
+  title: {
+    template: '%s | Authentication and User Management',
+    default:'Authentication and User Management',
+  },
+  default:'The easiest way to add authentication and user management to your application. Purpose-built for React, Next.js, Remix, and “The Modern Web”.',
+  metadataBase: new URL('https://next-learn-dashboard.vercel.sh'),
+};
 ```
+例えば、ページごとに title を変えつつ、共通の接尾辞を付けたい場合に使う。
+%s の部分が、各ページごとに設定された title に置き換えられる。
+**title.default**：titleが指定されていないページでは、デフォルトのタイトルとして "Authentication and User Management"を表示する。
+**metadataBase（ベースURLの設定）**
+metadataBaseを指定すると、相対URLで設定したメタデータのURLが自動的に絶対URLに変換される。
+SNSシェア時やSEOのためのURLの正規化に使われます。
+
+|ページ|title の設定|実際の出力|
+|---|---|---|
+|/ (ホーム)|undefined|Authentication and User Management|
+|/settings|Settings|`Settings|
+|/profile|User Profile|	`User Profile|
 
 # 最後に
 この記事が誰かの役にたてれば幸いです。
