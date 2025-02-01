@@ -47,9 +47,22 @@ Web開発では、メタデータは Web ページに関する追加の詳細を
 - **タイトル** メタデータ: ブラウザ タブに表示される Web ページのタイトルを担当します。検索エンジンが Web ページの内容を理解するのに役立つため、SEO にとって非常に重要です。
 - **説明メタデータ**: このメタデータは、Web ページのコンテンツの簡単な概要を提供し、多くの場合、検索エンジンの結果に表示されます。
 - **キーワード メタデータ**: このメタデータには、Web ページのコンテンツに関連するキーワードが含まれており、検索エンジンがページをインデックスするのに役立ちます。
-- **Open Graph メタデータ**: このメタデータは、タイトル、説明、プレビュー画像などの情報を提供することで、ソーシャル メディア プラットフォームで共有されるときに Web ページが表示される方法を強化します。
+- **Open Graph メタデータ**: このメタデータは、タイトル、説明、プレビュー画像などの情報を提供することで、ソーシャルメディアプラットフォームで共有されるときにWebページが表示される方法を強化します。
 - **ファビコン メタデータ**: このメタデータは、ブラウザのアドレス バーまたはタブに表示されるファビコン (小さなアイコン) を Web ページにリンクします。
 
+|プロパティ|役割|影響する範囲|
+|---|---|---|
+|title|ページタイトル|検索エンジン, ブラウザのタブ|
+|description|ページ説明|検索エンジンの結果ページ|
+|keywords|キーワード（現在は影響なし）|ほぼ無効|
+|openGraph.title|SNSでのタイトル|Facebook, Twitter, LinkedIn など|
+|openGraph.description|SNSでの説明文|Facebook, Twitter, LinkedIn など|
+|openGraph.url|シェア時のURL|SNS|
+|openGraph.image|シェア時の画像|SNS（特に重要）|
+|openGraph.type|ページの種類|SNS|
+|openGraph.site_name|サイト名|SNS|
+
+特に og:image が設定されていないと、SNSでのシェア時に画像が表示されずクリック率が下がる ので注意が必要です。
 # 実際の使用方法
 デフォルトでは、Next.jsは各ページのHTMLヘッダーセクションにページ タイトル、文字セット、ビューポート設定などの基本的なメタデータを含めます。以下は、新しく生成されたNext.js プロジェクトのHTMLです。
 ```
@@ -93,6 +106,10 @@ export default function Home() {
 
 ### metadataオブジェクトのエクスポート
 App Routerを使用するNext.js のバージョンでは、metadataという適切な名前の変数をエクスポートしてページメタデータを定義することもできます。これにより、構造内でメタデータを定義できます。
+:::message
+この設定ができるのは**Server Componentsのみ**です。
+keywords[]は現在はSEOにはほぼ影響しないらしいです。（Googleはこのタグを無視する）
+:::
 ```
 export const metadata = {
   title: 'Clerk | Authentication and User Management',
@@ -104,6 +121,20 @@ export const metadata = {
     description: 'The best user management and authentication platform.',
     url: 'https://xxx',
   },
+  icons: { 
+      icon: [
+        {
+        media: '(prefers-color-scheme: light)', // ライトモードの時
+        url: imageData.light,
+	href: imageData.path,
+      },
+      {
+        media: '(prefers-color-scheme: dark)', // ダークモードの時
+        url: imageData.dark,
+	href: imageData.path,
+      },
+      ],
+    },
 }
 ```
 複数のページに同じ値を適用する場合は、metadataをレイアウトファイルからエクスポートすることもできます。これにより、そのレイアウトのすべての子ルートにメタデータが適用されます。
@@ -135,3 +166,84 @@ export default function BlogPost({ params }) {
 }
 ```
 データ ソースに基づいてページが動的に生成される場所では、このメソッドが使用されます。
+
+### Next.js メタデータ継承
+Next.jsメタデータをカスタマイズする場合、すべてのルートで同じ値を指定する必要はありません。
+Next.jsは、継承ルールが定義されていない場合、親ルートから子ルートに自動的に適用します。ブログの例では、Web サイトのルートの最上位レイアウトファイルに次のメタデータが定義されている場合です。
+```
+export const metadata = {
+  title: 'Clerk | Authentication and User Management',
+  description:
+    'The easiest way to add authentication and user management to your application. Purpose-built for React, Next.js, Remix, and “The Modern Web”.',
+  keywords: ['Next.js', 'Authentication', 'User Management'],
+  openGraph: {
+    title: 'Clerk',
+    description: 'The best user management and authentication platform.',
+    url: 'https://clerk.com',
+  },
+}
+```
+また、ブログ投稿のメタデータを生成するこの機能もあります。
+```
+export async function generateMetadata({ params }) {
+  const res = await fetch(`/api/posts/${params.slug}`)
+  const post = await res.json()
+
+  return {
+    title: post.title,
+    description: post.summary,
+    openGraph: {
+      title: post.title,
+      description: post.summary,
+      url: `https://clerk.com/blog/${params.slug}`,
+    },
+  }
+}
+```
+keywords関数内で値が明示的に定義されていない場合でも、ブログ投稿に値が設定されます。
+generateMetadataこれは、値が存在する場合にのみ、子メタデータが親メタデータを上書きするためです。
+
+# おまけ
+[公式サイト](https://nextjs.org/docs/app/api-reference/file-conventions/metadata/app-icons#image-files-ico-jpg-png)よりファビコンの設定はファイルでもできるようです
+```
+import { ImageResponse } from 'next/og'
+ 
+// Image metadata
+export const size = {
+  width: 32,
+  height: 32,
+}
+export const contentType = 'image/png'
+ 
+// Image generation
+export default function Icon() {
+  return new ImageResponse(
+    (
+      // ImageResponse JSX element
+      <div
+        style={{
+          fontSize: 24,
+          background: 'black',
+          width: '100%',
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+        }}
+      >
+        A
+      </div>
+    ),
+    // ImageResponse options
+    {
+      // For convenience, we can re-use the exported icons size metadata
+      // config to also set the ImageResponse's width and height.
+      ...size,
+    }
+  )
+}
+```
+
+# 最後に
+この記事が誰かの役にたてれば幸いです。
