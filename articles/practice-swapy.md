@@ -1,5 +1,5 @@
 ---
-title: "Next.jsのmeta-dataを設定方法"
+title: "swapyというドラック&ドロップライブラリーを使ってみた"
 emoji: "❄️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["react","Next.js","HTML","meta-data"]
