@@ -15,3 +15,4 @@ published: false
 # インストール
 `pnpm install swapy`を実行します。
 （pnpmのところは普段使用しているインストールパッケージを使用してください）
+やめた
