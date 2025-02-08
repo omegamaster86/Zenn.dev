@@ -17,3 +17,9 @@ ReactNativeをインストールします。
 続いてSupabaseクライアントライブラリをインストールします。
 併せて必要な依存関係をインストールします。
 `npx expo install @supabase/supabase-js @react-native-async-storage/async-storage @rneui/themed react-native-url-polyfill`
+
+
+# いざ実装
+[React NativeでSupabase Authを使用する](https://supabase.com/docs/guides/auth/quickstarts/react-native)を参考にしてみましょう。
+
+`supabaseUrl`と`supabaseAnonKey`はそれぞれProjectSettingsのDataAPIに記載してあるので、忘れてしまった方は参照してください。
