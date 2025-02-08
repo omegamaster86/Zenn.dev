@@ -14,5 +14,6 @@ published: false
 # インストール
 ReactNativeをインストールします。
 `npx create-expo-app アプリ名`
-続いてsupabaseをインストールします。
+続いてSupabaseクライアントライブラリをインストールします。
+併せて必要な依存関係をインストールします。
 `npx expo install @supabase/supabase-js @react-native-async-storage/async-storage @rneui/themed react-native-url-polyfill`
