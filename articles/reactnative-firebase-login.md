@@ -8,7 +8,11 @@ published: false
 
 # 初めに
 何故か鼻水が止まらないオメガマスターです…
-今回はReactNativeとFirebaseを使ってログイン機能を実装してみました。
-Firebaseを使用する機会がなかったので、ReactNativeの学習がてら実装することにしました。
+今回はReactNativeとSupabaseを使ってログイン機能を実装してみました。
+今回作ってみるのはToDoアプリを実装するのでFirebaseで十分ですが、今回は実際の開発にも使用しているSupabaseを使ってみました。
 
 # インストール
+ReactNativeをインストールします。
+`npx create-expo-app アプリ名`
+続いてsupabaseをインストールします。
+`npx expo install @supabase/supabase-js @react-native-async-storage/async-storage @rneui/themed react-native-url-polyfill`
