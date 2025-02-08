@@ -22,4 +22,6 @@ ReactNativeをインストールします。
 # いざ実装
 [React NativeでSupabase Authを使用する](https://supabase.com/docs/guides/auth/quickstarts/react-native)を参考にしてみましょう。
 
+:::message
 `supabaseUrl`と`supabaseAnonKey`はそれぞれProjectSettingsのDataAPIに記載してあるので、忘れてしまった方は参照してください。
+:::
