@@ -26,6 +26,7 @@ react-native-async-storage は、React Native 向けの非同期ストレージ�
 **アプリを閉じても保持したいデータを保存する**
 - 設定やユーザーデータをキャッシュ
 - ローカルストレージにデータを保存し、APIリクエストを減らす
+
 **使わない方がいい場合**
 - 大きなデータを保存する（AsyncStorageはKey-Value形式なので、SQLiteやRealmの方が適している）
 - セキュアなデータ（パスワードなどはSecureStoreを使う）
