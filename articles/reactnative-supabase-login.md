@@ -1,14 +1,14 @@
 ---
-title: "ReactNativeとFirebaseを使ってログイン機能を実装"
+title: "ReactNativeとSupabaseを使ってログイン機能を実装"
 emoji: "❄️"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["ReactNative","expo","Firebase"]
+topics: ["ReactNative","expo","Supabase"]
 published: false
 ---
 
 # 初めに
 何故か鼻水が止まらないオメガマスターです…
-今回はReactNativeとSupabaseを使ってログイン機能を実装してみました。
+今回はReactNativeとFirebaseを使ってログイン機能を実装してみました。
 今回作ってみるのはToDoアプリを実装するのでFirebaseで十分ですが、今回は実際の開発にも使用しているSupabaseを使ってみました。
 
 # インストール
@@ -25,3 +25,14 @@ ReactNativeをインストールします。
 :::message
 `supabaseUrl`と`supabaseAnonKey`はそれぞれProjectSettingsのDataAPIに記載してあるので、忘れてしまった方は参照してください。
 :::
+
+### ReactNativeでenvファイルを読み込む方法
+`yarn add react-native-dotenv`をインストールします。
+babel.config.js に `module:react-native-dotenv`を追加します。
+```:babel.config.js
+module.exports = {
+  presets: ['module:metro-react-native-babel-preset'],
+  plugins: ['module:react-native-dotenv'],
+};
+
+```
