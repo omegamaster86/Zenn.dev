@@ -18,3 +18,11 @@ published: false
 ただ「飲食店を使用するのにアカウント登録する」という違和感はありますが、目を瞑りましょう！
 ps。あとお金があるところでないと手数料的に難しいですね…（今更感…）
 
+# 画面図
+### 商品一覧ページ
+![](/images/nextjs-stripe-plactice/image1.png)
+### 「カートに入れる」ボタン押下時
+![](/images/nextjs-stripe-plactice/image2.png)
+### 支払い画面
+![](/images/nextjs-stripe-plactice/image3.png)
+
