@@ -8,6 +8,10 @@ published: false
 ---
 
 # 初めに
+私が勤めている会社ではSupabaseを積極的に採用しているので、今回はSupabaseのLaunch Weekの内容を見ていこうかなと思いまとめてみました〜
+:::message
+今回の記事は何かを作ったわけでもないので、さらっと「こんなことができるようになったんだな〜」という参考程度にご覧になってください！
+:::
 
 # 1日目：[Supabase UI ライブラリをリリース！](https://supabase.com/blog/supabase-ui-library)
 より迅速に作業を進め、より高品質のアプリを構築するための、事前に構築されたドロップインコンポーネントのセットをリリースしたようです。
@@ -33,7 +37,16 @@ Realtime Cursorコンポーネントを使えば、アプリケーションで�
 リアルタイムチャットコンポーネントは、ユーザーが共有ルーム内でリアルタイムにメッセージを交換できる、包括的なチャットインターフェースです。リアルタイムで低遅延の更新、メッセージの同期、メッセージの永続化サポート、カスタマイズ可能なメッセージ表示、新着メッセージの自動スクロール機能など、様々な機能を備えています。
 ![](/images/supabase-loanch-week/image7.png)
 
-# 2日目：
+# 2日目：[ダッシュボードからのデプロイ + Deno 2.1](https://arc.net/l/quote/zpionbhz)
+Supabaseダッシュボードから直接Edge Functionsを作成、テスト、編集、デプロイできるようになりました。また、本日Deno 2.1プレビュー版もリリースしました。
+### Supabaseダッシュボードからエッジ関数を作成する
+以前は、EdgeFunctionsを書くには、SupabaseCLIをインストールし、Dockerを起動し、エディタを Deno用に設定する必要がありました。これらの手順はもう不要です。ダッシュボードのEdgeFunctionsエディタには、DenoおよびSupabase固有のAPIの構文ハイライトと型チェック機能が組み込まれています。
+![](/images/supabase-loanch-week/image8.png)
+Edge Functions エディターには、Stripe WebHooks、OpenAIプロキシ、Supabaseストレージへのファイルのアップロード、電子メールの送信など、一般的なユースケースのテンプレートが含まれています。
+![](/images/supabase-loanch-week/image9.png)
+関数がデプロイされると、ダッシュボード内で直接編集できるようになります。また、行き詰まった場合は、インラインAIアシスタントを呼び出して説明、デバッグ、またはコードの記述を行うこともできます。
+![](/images/supabase-loanch-week/image10.png)
+
 
 # 3日目：
 
