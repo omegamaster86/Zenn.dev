@@ -1,6 +1,6 @@
 ---
 title: "SupabaseのLaunch Weekがあったんじゃ！"
-emoji: "💰"
+emoji: "📖"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["React","Next.js","TypeScript","Supabase",]
 published: true
