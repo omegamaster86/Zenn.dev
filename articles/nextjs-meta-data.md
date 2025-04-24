@@ -1,10 +1,10 @@
 ---
-title: "Next.jsのmeta-dataを設定方法"
+title: "Next.jsのmeta-data設定方法"
 emoji: "❄️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["react","Next.js","HTML","meta-data"]
 published: true
-published_at: 2025-02-03 11:00
+published_at: 2025-04-24 12:00
 ---
 
 # 初めに
