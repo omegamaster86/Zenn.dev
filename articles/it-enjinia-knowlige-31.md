@@ -2,9 +2,15 @@
 title: "ITエンジニア用語を知りたいんじゃ"
 emoji: "📖"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["React","Next.js","TypeScript","Supabase",]
+topics: ["IT用語","初学者"]
 published: false
 # published_at: 
 ---
 
 # 初めに
+いや〜暑くなったり、寒くなったりよくわからない季節ですね〜
+体調管理にはくれぐれも気をつけてください〜
+さて今回この記事で解説する用語は[聞き流しOK！IT/エンジニア用語31選！徹底解説【プログラミング編】](https://www.youtube.com/watch?v=5kpG4u8VmiA)で菊本様が発表した用語です。
+是非上記の動画をご覧になった上で、「あれ…いまいちピンとこない」という方はご参考までにご覧になってください！
+
+#
