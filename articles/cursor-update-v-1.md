@@ -89,8 +89,9 @@ Mermaid図とMarkdown表を同じ場所で生成・表示できるようにな�
 ![](/images/cursor-update-v-1/image14.png)
 
 # Cursor v1の新機能 新しい設定とダッシュボード
-
-# Cursor v1の新機能 より充実した差分表示
+新しいダッシュボードを使用すると、個人またはチームの使用状況分析を表示したり、表示名を更新したり、ツールまたはモデル別に分類された詳細な統計情報を表示したりできます。
+![](/images/cursor-update-v-1/image15.png)
+![](/images/cursor-update-v-1/image16.png)
 
 # いつからあったかわからないけどプレビュー機能
 画像の真ん中にある「P」が表示されているところをクリックすると
