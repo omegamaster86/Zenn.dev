@@ -3,8 +3,8 @@ title: "cursorのV1.0が出たんじゃ"
 emoji: "📖"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
-published: false
-# published_at: 
+published: true
+published_at: 2025-06-07 18:30
 ---
 
 # 初めに
@@ -17,7 +17,7 @@ published: false
 :::
 
 # みなさんご存知のcursorとは？
-そもそもcursorとはVS Codeをフォークした、強力なAIモデル（Claude、Gemini GPT）をエディタ内に深く統合したAIエディタです。
+そもそもcursorとはVS Codeをフォークした、強力なAIモデル（Claude、Gemini、GPT）をエディタ内に深く統合したAIエディタです。
 AIエディタが無い時代には、GPT等にコードとエラーを貼ってエラーを聞いたりしていたかもしれません。しかし、cursorはエディタ内にAIがあるので、エラーとファイルを指定して、ピンポインかつ、修正したい内容に関連したファイルも指定できるので、より効率的に問題解決や開発ができるツールです。プライバシーモードにも対応しています。
 こんな感じで指定できます。
 ![](/images/cursor-update-v-1/image1.png)
@@ -103,3 +103,6 @@ cursorのプレビューで表示では日本語の位置と画像の位置が�
 ![](/images/cursor-update-v-1/image4.png)
 zennで表示だと完璧ですね
 ![](/images/cursor-update-v-1/image5.png)
+
+# 最後に
+この記事をきっかけにcursorユーザーが増えると幸いです。
