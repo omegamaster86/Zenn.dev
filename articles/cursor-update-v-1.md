@@ -11,6 +11,10 @@ published: false
 皆さん待望のcursorの正式リリース版であるV 1.0がリリースされました！
 先日行われた Cursor Meetup Tokyoでは5000人以上の参加者で大賑わいでしたね（私は現地に行けなかったです）
 そんな大人気のcursorで新しいバージョンが出たので内容を見ていきたいと思います。
+:::message
+個人的に触っていないものJupyter Notebookとかは内容が薄いと思うので、あらかじめご了承ください。
+またこの情報は2025/06/07時点の情報なので、参考までにご覧ください。
+:::
 
 # みなさんご存知のcursorとは？
 そもそもcursorとはVS Codeをフォークした、強力なAIモデル（Claude、Gemini GPT）をエディタ内に深く統合したAIエディタです。
@@ -39,6 +43,14 @@ bugbot runPRにコメントしてBugBotを手動で起動します。
 BugBotが問題を見つけなかった場合はコメントを投稿しない
 
 # Cursor v1の新機能 MCPワンクリックインストール
+[ここ](https://docs.cursor.com/tools)をクリックすると画像のようなページに遷移します。
+![](/images/cursor-update-v-1/image11.png)
+そして例えばAdd Notion to Cursorをクリックすると下の画像のようにNotionのMCPのインストール画面に遷移します。
+![](/images/cursor-update-v-1/image10.png)
+その後実際にMCPサーバーを見に行くとNotionが追加されていますが、`Needs login`と表示されます。
+`Needs login`をクリックすると連携して良いか聞かれるので、連携してみましょう。その後画像のような画面に遷移するので、アクセスしてもいいページを選択してください
+![](/images/cursor-update-v-1/image12.png)
+インテグレ―ションが成功すると接続完了です。
 
 # Cursor v1の新機能 誰でも使えるバックグラウンドエージェント(Beta)
 バックグラウンドエージェントを使用すると、リモート環境でコードを編集・実行できる非同期エージェントを起動できます。いつでもエージェントのステータスを確認したり、フォローアップを送信したり、引き継いだりできます。
@@ -60,11 +72,21 @@ BugBotが問題を見つけなかった場合はコメントを投稿しない
 - `start`コマンドは省略できることが多い。よくあるケースとしては、開発環境がdockerに依存している場合で、その場合は startコマンドに`sudo service docker start`と記述します。
 - `terminals`はアプリのコード用だ。これらのターミナルは、あなたとエージェントの両方が利用できるtmuxセッションで実行されます。例えば、多くのWebサイトのリポジトリでは、ターミナルの 1 つに`npm run watch`を指定しています。
 
-# Cursor v1の新機能 Jupyter Notebook のエージェント
+# Cursor v1の新機能 Jupyter Notebookのエージェント
+「Jupyter Notebooks」とは、データ分析や機械学習の分野で広く利用されている開発環境です。
+エージェントはJupyter内で複数のセルを直接作成・編集できるようになりました。最初はsonnetのモデルで対応している様子です。
+コードの改善,実験と仮説検証の高速化などにに使えそうです。
 
 # Cursor v1の新機能 Memories(Beta)
+Cursor はプロジェクトごとにAIとの会話履歴を記憶し、後で参照することができます。メモリーはプロジェクトごとに個別に保存され、設定から管理できます。
+チャットの履歴参照機能との差別化をしていかないと使いこなすのは難しそうですね…
+Cursor Settings>Rulesに画像のような項目があるので、使用する場合いはオンにしてみましょう。
+![](/images/cursor-update-v-1/image9.png)
 
 # Cursor v1の新機能 より充実したチャット応答
+Mermaid図とMarkdown表を同じ場所で生成・表示できるようになりました。
+![](/images/cursor-update-v-1/image13.png)
+![](/images/cursor-update-v-1/image14.png)
 
 # Cursor v1の新機能 新しい設定とダッシュボード
 
