@@ -7,7 +7,10 @@ published: false
 # published_at: 2025-06-07 18:30
 ---
 
-cursor
+＃ おまけ
+なんとなくcursorとclaudeで出力結果かわるのかな〜と思い、実験してみたら、結構違う出力になりました…
+どちらもclaude-4-sonnetを使用しています。
+cursorでの出力
 ```
 "use client";
 
@@ -96,7 +99,7 @@ const DeleteButton = () => {
 export default DeleteButton
 ```
 
-claude
+claudeでの出力
 ```
 "use client";
 import { useState, useRef } from "react";
