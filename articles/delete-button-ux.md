@@ -1,11 +1,17 @@
 ---
-title: "削除ボタンのUI"
-emoji: "📖"
+title: "よりよい削除ボタンのUI"
+emoji: "🆑"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["React","Next","HTML"]
 published: false
 # published_at: 2025-06-07 18:30
 ---
+
+# はじめに
+どうも！毎回Zennの記事タイトルの上にある絵文字の選択に困っているオメガマスターです。
+なんかランダムで選んでくれて良いのになと思っています。
+
+
 
 ＃ おまけ
 なんとなくcursorとclaudeで出力結果かわるのかな〜と思い、実験してみたら、結構違う出力になりました…
