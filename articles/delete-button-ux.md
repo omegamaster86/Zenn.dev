@@ -90,20 +90,18 @@ export default async function Home() {
 `const initialPosts = await getPosts();`の`getPosts()`にカーソルを当てると`promise<Post[]>`があるので、型が渡っています。
 ```:delete-button.tsx
 "use client";
-import { useState, useRef } from "react";
+import { useRef } from "react";
 
 interface DeleteButtonProps {
   onDelete?: () => void;
 }
 
 const DeleteButton = ({ onDelete }: DeleteButtonProps) => {
-  const [isPressed, setIsPressed] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleMouseDown = () => {
     
-    setIsPressed(true);
     if (overlayRef.current) {
       overlayRef.current.style.clipPath = 'inset(0px 0px 0px 0px)';
       overlayRef.current.style.transition = 'clip-path 2s linear';
@@ -116,7 +114,6 @@ const DeleteButton = ({ onDelete }: DeleteButtonProps) => {
 
   const handleMouseUp = () => {
     
-    setIsPressed(false);
     if (overlayRef.current) {
       overlayRef.current.style.clipPath = 'inset(0px 100% 0px 0px)';
       overlayRef.current.style.transition = 'clip-path 200ms ease-out';
@@ -130,7 +127,6 @@ const DeleteButton = ({ onDelete }: DeleteButtonProps) => {
 
   const handleMouseLeave = () => {
     
-    setIsPressed(false);
     if (overlayRef.current) {
       overlayRef.current.style.clipPath = 'inset(0px 100% 0px 0px)';
       overlayRef.current.style.transition = 'clip-path 200ms ease-out';
