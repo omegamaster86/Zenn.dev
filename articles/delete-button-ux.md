@@ -2,9 +2,9 @@
 title: "よりよい削除ボタンのUI"
 emoji: "🆑"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["React","Next","HTML"]
-published: false
-# published_at: 2025-06-07 18:30
+topics: ["React","Next","HTML","useRef"]
+published: true
+published_at: 2025-06-23 09:00
 ---
 
 # はじめに
@@ -181,10 +181,40 @@ const DeleteButton = ({ onDelete }: DeleteButtonProps) => {
 
 export default DeleteButton
 ```
+ちなみに`useRef` は、React コンポーネント内で「何かを保持し続けたいとき」に使うフックです。
+https://ja.react.dev/reference/react/useRef
+https://zenn.dev/dove/articles/e2d962e9d69e20
+```
+const overlayRef = useRef<HTMLDivElement>(null);
+```
+このコードで overlayRef には、次のような形のオブジェクトが入ります。
+```
+{
+  current: null // または DOM要素（後で代入される）
+}
+```
+つまり、useRefは次のような箱の（入れ物）オブジェクトを作ってくれます👇
+- 最初はcurrentがnull（まだ何も入っていない）
+- 実際の「中身（DOM）」にアクセスするには ref.currentを通す必要がある
+- ref={overlayRef}をつけた要素がレンダリングされると、currentにそのDOMが代入される
 
+今回で言うとDOM要素へのアクセス（今回のoverlayRef）
+HTML要素に直接アクセスしたいときに使います。
+→ JavaScriptで.style などをいじるため。
+例えば下記のコードでDOM要素（div）にアクセスして、スタイルを変更しています。
+`overlayRef.current.style.clipPath = 'inset(0px 0px 0px 0px)';`
+`overlayRef.current.style`のstyleはJavaScriptからHTML要素のCSSを直接変更するためのプロパティです。
+つまり`overlayRef.current`に`clipPath`という`style`を`JavaScript経由で当てるよ`っていう意味です。
+
+値の保存（今回のtimeoutRef）
+再レンダリングしても値を保持したいときに使います。
+- setTimeout() のIDなどを一時的に保存しておくのに便利です。
+- handleMouseDownで削除予約を開始し、
+- handleMouseUpやhandleMouseLeaveでキャンセルするためにclearTimeoutを使います
 # おまけ
 なんとなくcursorとclaudeで出力結果かわるのかな〜と思い、実験してみたら、結構違う出力になりました…
 どちらもclaude-4-sonnetを使用しています。
+特に下記については触れないので、ご了承ください。
 cursorでの出力
 ```
 "use client";
@@ -348,3 +378,5 @@ export default function ClipPathButton() {
   );
 }
 ```
+# 最後に
+この記事が誰かの役に立てば幸いです。
