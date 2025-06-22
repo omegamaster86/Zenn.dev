@@ -17,7 +17,224 @@ https://emilkowal.ski/ui/building-a-hold-to-delete-component
 
 しか弊社では実装していない気がします。それでも良いかなと思うのですが、慣れてきたり、急いだりしていると確認も適当になって削除しちゃうこともあると思います。そんな中このUIならオシャンティかつ、間違えることもないのでUXよさそうな気がしています。
 
-# 
+# 実装
+サイトにもコードはありますが、tailwindを普段から使用しているので、変更していきたいと思います。
+完成系のコードは下記です。
+
+```:type.ts
+export interface Post {
+  id: number;
+  title: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+} 
+```
+型の説明は特に不要だと思うので割愛します。
+```:server.tsx
+import { Post } from '@/app/types';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+export async function getPosts(): Promise<Post[]> {
+  try {
+    const response = await fetch(`${API_URL}/api/v1/posts`, {
+      cache: 'no-store',
+    });
+    
+    if (!response.ok) {
+      throw new Error('投稿の取得に失敗しました');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Posts fetch error:', error);
+    return [];
+  }
+} 
+```
+Promise<Post[]> は、関数 getPosts() が 非同期で Post[] 型（投稿の配列）を返すことを示す型注釈 です。
+なので上記のコードから`: Promise<Post[]>`を削除しても問題ありません。（型が効かなくなるので、問題といえば問題かもしれませんが…）promiseに関して「あれ？」と思った方はこちらを見てください。
+https://qiita.com/cheez921/items/41b744e4e002b966391a
+https://zenn.dev/peter_norio/articles/289927bab5a4d3
+
+`cache: 'no-store'`はfetch に渡しているオプションで、ブラウザやNext.jsのキャッシュを使わず、常にサーバーから新鮮なデータを取得する設定です。
+他の設定はこちらです。
+| オプション名             | 説明                                                      |
+| ------------------ | ------------------------------------------------------- |
+| `default`        | ブラウザやNext.jsの通常のキャッシュポリシーに従う（状況によって使ったり使わなかったり）         |
+| `no-store`       | **キャッシュを一切使わず、毎回必ずサーバーから新しいデータを取得する**                   |
+| `reload`         | サーバーからデータを取得し、キャッシュを**上書き**する。キャッシュは**使わない**            |
+| `no-cache`       | **キャッシュがあっても必ずサーバーに確認する**。条件付きGETなどで最新であればキャッシュを使うこともある |
+| `force-cache`    | サーバーに問い合わせず、**常にキャッシュを使う**（キャッシュがなければサーバーに問い合わせる）       |
+| `only-if-cached` | **キャッシュがあるときだけ返す**。なければエラーになる（ブラウザでしか使えないことが多い）         |
+
+なんとなく'`no-store`と`reload`が同じように見えますが、実際には違いがあります。
+ | オプション        | キャッシュから読む？ | サーバーに問い合わせる？ | キャッシュに保存する？   |
+| ------------ | ---------- | ------------ | ------------- |
+| `no-store` | ❌ 一切使わない   | ✅ 必ず問い合わせる   | ❌ キャッシュに保存しない |
+| `reload`   | ❌ 一切使わない   | ✅ 必ず問い合わせる   | ✅ キャッシュに保存する  |
+
+`no-store`は管理画面やAPI通信など、絶対に最新データを使いたい場面やセキュリティ的にキャッシュしてはいけない場合（例：個人情報）に使用します。
+`reload`は初回はサーバーから最新を取得したいが、次回以降はキャッシュを使いたい場面やキャッシュを明示的に更新したいとき（リロードボタン的な動作）に使用します。
+
+```:page.tsx
+import { getPosts } from './server';
+import ClientHome from '@/app/client-home';
+
+export default async function Home() {
+  const initialPosts = await getPosts();
+  
+  return <ClientHome initialPosts={initialPosts} />;
+}
+```
+`const initialPosts = await getPosts();`の`getPosts()`にカーソルを当てると`promise<Post[]>`があるので、型が渡っています。
+```:client-home.tsx
+'use client';
+
+import { useState } from 'react';
+import DeleteButton from './delete-button';
+import { Post } from './types';
+
+interface ClientHomeProps {
+  initialPosts: Post[];
+}
+
+export default function ClientHome({ initialPosts }: ClientHomeProps) {
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [error, setError] = useState<string | null>(null);
+  const [newPost, setNewPost] = useState({ title: '', content: '' });
+  const [isCreating, setIsCreating] = useState(false);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+  const createPost = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPost.title.trim() || !newPost.content.trim()) return;
+
+    setIsCreating(true);
+    try {
+      const response = await fetch(`${API_URL}/api/v1/posts`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ post: newPost }),
+      });
+
+      if (!response.ok) {
+        throw new Error('投稿の作成に失敗しました');
+      }
+
+      const createdPost = await response.json();
+      setPosts([createdPost, ...posts]);
+      setNewPost({ title: '', content: '' });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '投稿作成エラー');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const deletePost = async (postId: number) => {
+    try {
+      const response = await fetch(`${API_URL}/api/v1/posts/${postId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('投稿の削除に失敗しました');
+      }
+
+      setPosts(posts.filter(post => post.id !== postId));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '投稿削除エラー');
+    }
+  };
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-500">エラー: {error}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">ブログ投稿</h1>
+        
+        {/* 新規投稿フォーム */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">新しい投稿を作成</h2>
+          <form onSubmit={createPost} className="space-y-4">
+            <div>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                タイトル
+              </label>
+              <input
+                type="text"
+                id="title"
+                value={newPost.title}
+                onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="投稿のタイトルを入力"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
+                内容
+              </label>
+              <textarea
+                id="content"
+                value={newPost.content}
+                onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="投稿の内容を入力"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={isCreating}
+              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCreating ? '作成中...' : '投稿を作成'}
+            </button>
+          </form>
+        </div>
+
+        {/* 投稿一覧 */}
+        <div className="space-y-6">
+          {posts.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">
+              投稿がありません
+            </div>
+          ) : (
+            posts.map((post) => (
+              <div key={post.id} className="bg-white rounded-lg shadow-md p-6">
+                <h2 className="text-xl font-semibold text-gray-900 mb-2">
+                  {post.title}
+                </h2>
+                <p className="text-gray-700 mb-4 whitespace-pre-wrap">
+                  {post.content}
+                </p>
+                <div className="text-sm text-gray-500 flex justify-between">
+                  作成日: {new Date(post.created_at).toLocaleDateString('ja-JP')}
+                  <DeleteButton onDelete={() => deletePost(post.id)}/>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+    </div>
+  );
+} 
+```
 
 # おまけ
 なんとなくcursorとclaudeで出力結果かわるのかな〜と思い、実験してみたら、結構違う出力になりました…
