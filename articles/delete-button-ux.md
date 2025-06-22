@@ -77,7 +77,6 @@ https://zenn.dev/peter_norio/articles/289927bab5a4d3
 
 `no-store`は管理画面やAPI通信など、絶対に最新データを使いたい場面やセキュリティ的にキャッシュしてはいけない場合（例：個人情報）に使用します。
 `reload`は初回はサーバーから最新を取得したいが、次回以降はキャッシュを使いたい場面やキャッシュを明示的に更新したいとき（リロードボタン的な動作）に使用します。
-
 ```:page.tsx
 import { getPosts } from './server';
 import ClientHome from '@/app/client-home';
@@ -89,151 +88,110 @@ export default async function Home() {
 }
 ```
 `const initialPosts = await getPosts();`の`getPosts()`にカーソルを当てると`promise<Post[]>`があるので、型が渡っています。
-```:client-home.tsx
-'use client';
+```:delete-button.tsx
+"use client";
+import { useState, useRef } from "react";
 
-import { useState } from 'react';
-import DeleteButton from './delete-button';
-import { Post } from './types';
-
-interface ClientHomeProps {
-  initialPosts: Post[];
+interface DeleteButtonProps {
+  onDelete?: () => void;
 }
 
-export default function ClientHome({ initialPosts }: ClientHomeProps) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
-  const [error, setError] = useState<string | null>(null);
-  const [newPost, setNewPost] = useState({ title: '', content: '' });
-  const [isCreating, setIsCreating] = useState(false);
+const DeleteButton = ({ onDelete }: DeleteButtonProps) => {
+  const [isPressed, setIsPressed] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const handleMouseDown = () => {
+    if (isDeleting) return;
+    
+    setIsPressed(true);
+    if (overlayRef.current) {
+      overlayRef.current.style.clipPath = 'inset(0px 0px 0px 0px)';
+      overlayRef.current.style.transition = 'clip-path 2s linear';
+    }
 
-  const createPost = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPost.title.trim() || !newPost.content.trim()) return;
+    timeoutRef.current = setTimeout(() => {
+      setIsDeleting(true);
+      onDelete?.();
+    }, 2000);
+  };
 
-    setIsCreating(true);
-    try {
-      const response = await fetch(`${API_URL}/api/v1/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ post: newPost }),
-      });
-
-      if (!response.ok) {
-        throw new Error('投稿の作成に失敗しました');
-      }
-
-      const createdPost = await response.json();
-      setPosts([createdPost, ...posts]);
-      setNewPost({ title: '', content: '' });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '投稿作成エラー');
-    } finally {
-      setIsCreating(false);
+  const handleMouseUp = () => {
+    if (isDeleting) return;
+    
+    setIsPressed(false);
+    if (overlayRef.current) {
+      overlayRef.current.style.clipPath = 'inset(0px 100% 0px 0px)';
+      overlayRef.current.style.transition = 'clip-path 200ms ease-out';
+    }
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   };
 
-  const deletePost = async (postId: number) => {
-    try {
-      const response = await fetch(`${API_URL}/api/v1/posts/${postId}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) {
-        throw new Error('投稿の削除に失敗しました');
-      }
-
-      setPosts(posts.filter(post => post.id !== postId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : '投稿削除エラー');
+  const handleMouseLeave = () => {
+    if (isDeleting) return;
+    
+    setIsPressed(false);
+    if (overlayRef.current) {
+      overlayRef.current.style.clipPath = 'inset(0px 100% 0px 0px)';
+      overlayRef.current.style.transition = 'clip-path 200ms ease-out';
+    }
+    
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
   };
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">エラー: {error}</div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold text-gray-900 mb-8">ブログ投稿</h1>
-        
-        {/* 新規投稿フォーム */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <h2 className="text-xl font-semibold mb-4">新しい投稿を作成</h2>
-          <form onSubmit={createPost} className="space-y-4">
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
-                タイトル
-              </label>
-              <input
-                type="text"
-                id="title"
-                value={newPost.title}
-                onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="投稿のタイトルを入力"
-                required
-              />
-            </div>
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium text-gray-700 mb-1">
-                内容
-              </label>
-              <textarea
-                id="content"
-                value={newPost.content}
-                onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-                rows={4}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="投稿の内容を入力"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isCreating}
-              className="bg-blue-500 text-white px-4 py-2 rounded-md hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isCreating ? '作成中...' : '投稿を作成'}
-            </button>
-          </form>
-        </div>
-
-        {/* 投稿一覧 */}
-        <div className="space-y-6">
-          {posts.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              投稿がありません
-            </div>
-          ) : (
-            posts.map((post) => (
-              <div key={post.id} className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-2">
-                  {post.title}
-                </h2>
-                <p className="text-gray-700 mb-4 whitespace-pre-wrap">
-                  {post.content}
-                </p>
-                <div className="text-sm text-gray-500 flex justify-between">
-                  作成日: {new Date(post.created_at).toLocaleDateString('ja-JP')}
-                  <DeleteButton onDelete={() => deletePost(post.id)}/>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+    <button 
+      className={`relative flex h-10 items-center gap-2 rounded-full bg-stone-100 px-6 font-medium text-stone-800 select-none transition-transform duration-150 ease-out ${
+        isPressed ? 'scale-[0.97]' : ''
+      } ${isDeleting ? 'opacity-50 cursor-not-allowed' : ''}`}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleMouseDown}
+      onTouchEnd={handleMouseUp}
+      disabled={isDeleting}
+    >
+      <div 
+        ref={overlayRef}
+        aria-hidden="true" 
+        className="absolute inset-0 flex items-center justify-center gap-2 rounded-full bg-red-100 text-red-500"
+        style={{
+          clipPath: 'inset(0px 100% 0px 0px)',
+          transition: 'clip-path 200ms ease-out'
+        }}
+      >
+        <svg height="16" strokeLinejoin="round" viewBox="0 0 16 16" width="16">
+          <path
+            fillRule="evenodd"
+            clipRule="evenodd"
+            d="M6.75 2.75C6.75 2.05964 7.30964 1.5 8 1.5C8.69036 1.5 9.25 2.05964 9.25 2.75V3H6.75V2.75ZM5.25 3V2.75C5.25 1.23122 6.48122 0 8 0C9.51878 0 10.75 1.23122 10.75 2.75V3H12.9201H14.25H15V4.5H14.25H13.8846L13.1776 13.6917C13.0774 14.9942 11.9913 16 10.6849 16H5.31508C4.00874 16 2.92263 14.9942 2.82244 13.6917L2.11538 4.5H1.75H1V3H1.75H3.07988H5.25ZM4.31802 13.5767L3.61982 4.5H12.3802L11.682 13.5767C11.6419 14.0977 11.2075 14.5 10.6849 14.5H5.31508C4.79254 14.5 4.3581 14.0977 4.31802 13.5767Z"
+            fill="currentColor"
+          />
+        </svg>
+        {isDeleting ? 'Deleting...' : 'Hold to Delete'}
       </div>
-    </div>
+      <svg height="16" strokeLinejoin="round" viewBox="0 0 16 16" width="16">
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M6.75 2.75C6.75 2.05964 7.30964 1.5 8 1.5C8.69036 1.5 9.25 2.05964 9.25 2.75V3H6.75V2.75ZM5.25 3V2.75C5.25 1.23122 6.48122 0 8 0C9.51878 0 10.75 1.23122 10.75 2.75V3H12.9201H14.25H15V4.5H14.25H13.8846L13.1776 13.6917C13.0774 14.9942 11.9913 16 10.6849 16H5.31508C4.00874 16 2.92263 14.9942 2.82244 13.6917L2.11538 4.5H1.75H1V3H1.75H3.07988H5.25ZM4.31802 13.5767L3.61982 4.5H12.3802L11.682 13.5767C11.6419 14.0977 11.2075 14.5 10.6849 14.5H5.31508C4.79254 14.5 4.3581 14.0977 4.31802 13.5767Z"
+          fill="currentColor"
+        />
+      </svg>
+      {isDeleting ? 'Deleting...' : 'Hold to Delete'}
+    </button>
   );
-} 
+}
+
+export default DeleteButton
 ```
 
 # おまけ
