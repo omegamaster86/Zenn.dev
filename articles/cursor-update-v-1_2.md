@@ -1,10 +1,10 @@
 ---
 title: "cursorの新しいProの価格設定の仕組みとV1.2が出たんじゃ"
-emoji: "📖"
+emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
-published: false
-# published_at: 
+published: true
+published_at: 2025-07-06 11:00
 ---
 
 # 初めに
@@ -22,6 +22,7 @@ Sonnet4リクエスト約225、Geminiリクエスト約550、GPT4.1リクエス�
 Sonnet4リクエスト約675件、Geminiリクエスト約1,650件、のGPT4.1リクエスト約1,950件
 - Ultra($200/月):エージェントを使ってコーディングの大部分を行うパワーユーザー向け
 Ultra:Sonnet4リクエスト約4,500件、Geminiリクエスト約11,000件、GPT4.1リクエスト約13,000件
+
 https://docs.cursor.com/account/pricing#expected-usage-within-limits
 会社とかでGPTと契約指定ならProプランのままでも良いかなとは思いますが、cursorと別でタブを開いておくのは面倒ですね…
 
