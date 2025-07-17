@@ -40,7 +40,7 @@ ToDoリストを作成したい。バックエンドとDBの選定は任せま�
 ```
 その後.kiro/specs/todo-list/requirements.mdが作成され、要件が適切か聞いてきます。もし要件に変更があれば手修正でもkiroにお願いして修正でも大丈夫です。
 ![](/images/kiro-cursor-diference/image3.png)
-:::details kiroが出した用件定義内容
+:::details kiro作成の要件定義内容
 # 要件定義書
 
 ## 概要
@@ -110,11 +110,165 @@ ToDoリストを作成したい。バックエンドとDBの選定は任せま�
 2. WHEN ユーザーが「未完了」フィルターを選択する THEN システムは未完了のタスクのみを表示する
 3. WHEN ユーザーが「完了済み」フィルターを選択する THEN システムは完了済みのタスクのみを表示する
 :::
+問題なかったので、「適切です」と送ったら下記の画像のようになりました。
+どのファイルを読み込んでいるかわかるのが良いですね〜cursorには無いんじゃないかな？（あったらごめんなさい）
+![](/images/kiro-cursor-diference/image4.png)
+:::details kiro作成の設計書
+# 設計書
 
+## 概要
 
-- Requiments / 機能要件の書き出し
-- Design / 詳細設計
-- Task list / 個別のタスク
+Next.js App Routerを使用したフルスタックToDoリストアプリケーション。フロントエンドはReact 19とTailwind CSS、バックエンドはNext.js API Routes、データベースはSQLiteとPrisma ORMを使用します。
+
+## アーキテクチャ
+
+### 技術スタック
+- **フロントエンド**: React 19, Next.js 15 (App Router), TypeScript, Tailwind CSS
+- **バックエンド**: Next.js API Routes
+- **データベース**: SQLite
+- **ORM**: Prisma
+- **状態管理**: React useState/useEffect (シンプルなアプリのため)
+
+### アーキテクチャパターン
+- **フロントエンド**: コンポーネントベースアーキテクチャ
+- **バックエンド**: RESTful API設計
+- **データアクセス**: Repository パターン（Prismaクライアント経由）
+
+## コンポーネントとインターフェース
+
+### フロントエンドコンポーネント
+
+#### 1. TodoApp (メインコンポーネント)
+- 全体の状態管理
+- API呼び出しの調整
+- 子コンポーネントの統合
+
+#### 2. TodoForm
+- 新しいタスクの作成フォーム
+- バリデーション機能
+- 送信処理
+
+#### 3. TodoList
+- タスクリストの表示
+- フィルタリング機能
+- 各タスクアイテムの管理
+
+#### 4. TodoItem
+- 個別タスクの表示
+- インライン編集機能
+- 完了状態の切り替え
+- 削除機能
+
+#### 5. TodoFilter
+- フィルタリングオプション（全て/未完了/完了済み）
+- アクティブフィルターの表示
+
+### API エンドポイント
+
+#### GET /api/todos
+- 全タスクの取得
+- クエリパラメータでフィルタリング対応
+
+#### POST /api/todos
+- 新しいタスクの作成
+- リクエストボディ: `{ title: string }`
+- レスポンス: 作成されたタスクオブジェクト
+
+#### PUT /api/todos/[id]
+- タスクの更新（タイトル、完了状態）
+- リクエストボディ: `{ title?: string, completed?: boolean }`
+- レスポンス: 更新されたタスクオブジェクト
+
+#### DELETE /api/todos/[id]
+- タスクの削除
+- レスポンス: 削除成功メッセージ
+
+## データモデル
+
+### Todo エンティティ
+
+```typescript
+interface Todo {
+  id: string;          // UUID
+  title: string;       // タスクのタイトル
+  completed: boolean;  // 完了状態
+  createdAt: Date;     // 作成日時
+  updatedAt: Date;     // 更新日時
+}
+```
+
+### Prismaスキーマ
+
+```prisma
+model Todo {
+  id        String   @id @default(cuid())
+  title     String
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+```
+
+## エラーハンドリング
+
+### フロントエンド
+- API呼び出し失敗時のエラー表示
+- フォームバリデーションエラーの表示
+- ネットワークエラーの適切な処理
+
+### バックエンド
+- 400: バリデーションエラー（空のタイトルなど）
+- 404: 存在しないタスクへのアクセス
+- 500: サーバー内部エラー
+
+### エラーレスポンス形式
+```typescript
+interface ErrorResponse {
+  error: string;
+  message: string;
+  statusCode: number;
+}
+```
+
+## テスト戦略
+
+### 単体テスト
+- コンポーネントのレンダリングテスト
+- API エンドポイントの機能テスト
+- バリデーション機能のテスト
+
+### 統合テスト
+- フロントエンドとバックエンドの連携テスト
+- データベース操作のテスト
+
+### E2Eテスト
+- ユーザーフローの完全なテスト
+- ブラウザでの実際の操作テスト
+
+### テストツール
+- **単体テスト**: Jest, React Testing Library
+- **E2Eテスト**: Playwright または Cypress
+
+## セキュリティ考慮事項
+
+- SQLインジェクション対策（Prismaによる自動対策）
+- XSS対策（Reactによる自動エスケープ）
+- CSRF対策（Next.jsのデフォルト設定）
+- 入力値のサニタイゼーション
+
+## パフォーマンス最適化
+
+- Server-side Rendering（SSR）の活用
+- 静的生成（SSG）の検討
+- 画像最適化（Next.js Image コンポーネント）
+- バンドルサイズの最適化
+
+## デプロイメント
+
+- **開発環境**: `npm run dev`
+- **本番環境**: Vercel または類似のプラットフォーム
+- **データベース**: 本番環境ではPostgreSQLまたはMySQLへの移行を検討
+:::
 
 # cursorとの比較
 |  | kiro | cursor |
