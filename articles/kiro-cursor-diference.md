@@ -545,11 +545,171 @@ interface ErrorResponse {
 # 実装の前に
 サイドバーのゴーストアイコンをクリックすると下記の画面が表示されます
 ![](/images/kiro-cursor-diference/image7.png)
+### SPEC
 SPECには先ほど作成した仕様書が見れるようになっています。
 ![](/images/kiro-cursor-diference/image8.png)
 真ん中にある1,2,3のボタンをクリックするとそれぞれの定義書に遷移します。
+### Agent Hooks
+Agent Hooksは、IDEで特定のイベントが発生した際に、事前定義されたエージェントアクションを実行する自動トリガーです。定型的なタスクの実行を手動で指示するのではなく、フックは次のようなイベントへの自動応答を設定します。
+- ファイルの保存
+- 新しいファイルの作成
+- ファイルの削除
 
+エージェントフックは、インテリジェントな自動化によって開発ワークフローを変革します。一般的なタスクにフックを設定することで、以下のことが可能になります。
+- 貫したコード品質を維持する
+- セキュリティの脆弱性を防ぐ
+- 手作業のオーバーヘッドを削減
+- チームのプロセスを標準化する
+- 開発サイクルを高速化
+じゃ実際に中身を見ていきましょう〜
+Agent Hooks横の＋ボタンをクリックすると画像のような画面が表示されます。
+![](/images/kiro-cursor-diference/image9.png)
+Describe a hook using natural languageに指定したいことを記載しましょう。私はこんな感じで記載しました。
+```
+ファイルが変更されたら必要に応じてドキュメントを更新して、単体テストを実施して欲しい。
+```
+その後エンターをクリックするとAgent Hooksが作成されました。
+![](/images/kiro-cursor-diference/image10.png)
+:::message
+タスクリストがすでにある状態で、Agent Hooksを追加しようとすると順番待ちみたいになるので、タスクリストがない状態で行うのが良いです。
+私の場合はtodo-listのタスクが残っていたので、実行されませんでした。todo-listのタスクを削除すればすぐにAgent Hooksが登録されました。
+:::
+また.kiro/hooks/doc-test-update.kiro.hookというファイルが作成され、このような記載がされています。
+```
+{
+  "enabled": true,
+  "name": "Documentation & Test Update",
+  "description": "Automatically updates documentation and runs unit tests when source files are changed",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "app/**/*.tsx",
+      "app/**/*.ts",
+      "*.ts",
+      "*.tsx",
+      "package.json"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A file has been modified in this Next.js project. Please:\n1. Review the changes and determine if documentation (README.md or other docs) needs to be updated\n2. If documentation updates are needed, update the relevant documentation files\n3. Run or suggest appropriate unit tests to ensure the changes work correctly\n4. Provide a summary of what was updated and any test results\n\nFocus on maintaining code quality and keeping documentation in sync with the codebase."
+  }
+}
+```
 
+### Agent STEERING
+ステアリングは、マークダウンファイルを通じて Kiro にプロジェクトに関する永続的な知識を提供します。チャットごとに規則を説明する代わりに、ステアリングファイルを使用することで、Kiro は確立されたパターン、ライブラリ、および標準に一貫して従うようになります。
+.cursor/rulesのようなものを記載する場所ですね
+Generate Steering Docsを言ういかにも押してくれという主張を感じるボタンがあるので、押してみます。
+そうするとこのような感じで何やら作成されたようです。
+![](/images/kiro-cursor-diference/image11.png)
+:::details product.md
+# Product Overview
+
+This is a Next.js web application project called "kiro-test" - a modern React-based web application built with Next.js 15 and React 19.
+
+## Purpose
+- Test/demo project for exploring Next.js capabilities
+- Uses the latest Next.js App Router architecture
+- Configured for modern web development with TypeScript and Tailwind CSS
+
+## Key Features
+- Server-side rendering and static generation
+- Modern React 19 features
+- Responsive design with Tailwind CSS
+- Optimized fonts (Geist family)
+- Dark mode support
+- Production-ready deployment configuration
+:::
+:::details structure.md
+# Project Structure
+
+## Root Level
+- `package.json` - Dependencies and scripts
+- `next.config.ts` - Next.js configuration
+- `tsconfig.json` - TypeScript configuration
+- `postcss.config.mjs` - PostCSS/Tailwind setup
+
+## App Directory (`app/`)
+Uses Next.js App Router structure:
+- `layout.tsx` - Root layout component (fonts, metadata, global structure)
+- `page.tsx` - Home page component
+- `globals.css` - Global styles and Tailwind imports
+- `favicon.ico` - Site favicon
+
+## Public Assets (`public/`)
+Static assets served from root:
+- SVG icons and logos
+- Images accessible via `/filename.svg`
+
+## Key Conventions
+
+### File Naming
+- React components: PascalCase (e.g., `RootLayout`)
+- Files: kebab-case or camelCase
+- TypeScript: `.tsx` for components, `.ts` for utilities
+
+### Component Structure
+- Use TypeScript interfaces for props
+- Export default for page/layout components
+- Metadata exports for SEO (App Router)
+
+### Styling Approach
+- Tailwind utility classes preferred
+- CSS custom properties for theming
+- Responsive design with mobile-first approach
+- Dark mode via CSS media queries
+
+### Import Patterns
+- Next.js components: `import { Component } from "next/..."`
+- Fonts: `import { Font } from "next/font/google"`
+- Relative imports for local files
+- Path alias `@/` available for root imports
+:::
+:::details tech.md
+# Technology Stack
+
+## Core Framework
+- **Next.js 15.4.1** - React framework with App Router
+- **React 19.1.0** - Latest React with concurrent features
+- **TypeScript 5** - Type-safe JavaScript
+
+## Styling & UI
+- **Tailwind CSS 4** - Utility-first CSS framework
+- **PostCSS** - CSS processing with Tailwind plugin
+- **Geist Fonts** - Optimized font family (Sans & Mono)
+
+## Development Tools
+- **Turbopack** - Fast bundler for development
+- **ESLint** - Code linting with Next.js config
+- **TypeScript** - Strict mode enabled
+
+## Common Commands
+
+### Development
+```bash
+npm run dev          # Start development server with Turbopack
+```
+
+### Build & Deploy
+```bash
+npm run build        # Build for production
+npm run start        # Start production server
+```
+
+### Code Quality
+```bash
+npm run lint         # Run ESLint checks
+```
+
+## Configuration Notes
+- Uses App Router (not Pages Router)
+- TypeScript strict mode enabled
+- Path aliases configured (`@/*` maps to root)
+- CSS custom properties for theming
+- Dark mode support via CSS media queries
+:::
 
 # cursorとの比較
 |  | kiro | cursor |
@@ -557,7 +717,7 @@ SPECには先ほど作成した仕様書が見れるようになっています�
 | コミットメッセージの自動生成 | ❌ | ⭕️ |
 | Docs | ❌ | ⭕️ |
 | Agent Hooks | ⭕️ | 🔺 （ruleに記載すれば可能かも）|
-| Docs | Text | Text |
+| MCP | ⭕️ | ⭕️ |
 
 個人的にコミットメッセージの自動生成はかなり助かっているので、ぜひkiroにも導入してほしいですね〜
 
