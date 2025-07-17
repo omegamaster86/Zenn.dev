@@ -1,6 +1,6 @@
 ---
 title: "新エディタのkiroとcursorを比較してみたんじゃ"
-emoji: "🌕"
+emoji: "👻"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["kiro","cursor","AI","AI駆動開発"]
 published: false
@@ -11,6 +11,10 @@ published: false
 気が早いかもしれませんが、そろそろ梅雨も終わり、夏も本番を迎えてきましたね〜
 さてAWSから新しいエディタのkiroがプレビュー版でリリースされました！
 早速見ていきながら、cursorと比較してみましょう〜
+:::message
+この記事は2025/07/17までの情報です。
+細真の情報は公式ドキュメントを必ず参照してください。
+:::
 
 # 結論
 - まだプレビュー版なので、これからどんどん情報が追加されていくと思うので、要チェックや！（とあるバスケ漫画のマネージャー風）
@@ -541,6 +545,9 @@ interface ErrorResponse {
 ![](/images/kiro-cursor-diference/image6.png)
 なかなかしっかり出来上がっている気がしますね〜
 会社毎の仕様書フォーマットを読み込ませて、なぞるように記載させれば、結構な手間が削減できるのではないでしょうか？
+あと現在実装速度が遅いらしいので、ここまでkiroを使用して、この後はclaude codeを使用するのが良いと思います。
+詳しくはこちらの記事に託します。
+https://zenn.dev/ubie_dev/articles/kiro-claude-code
 
 # 実装の前に
 サイドバーのゴーストアイコンをクリックすると下記の画面が表示されます
@@ -604,6 +611,8 @@ Describe a hook using natural languageに指定したいことを記載しまし
 Generate Steering Docsを言ういかにも押してくれという主張を感じるボタンがあるので、押してみます。
 そうするとこのような感じで何やら作成されたようです。
 ![](/images/kiro-cursor-diference/image11.png)
+### product.md
+製品の目的、ターゲットユーザー、主要機能、ビジネス目標を定義します。これにより、Kiroは技術的な決定の背後にある「理由」を理解し、製品目標に沿ったソリューションを提案することができます。
 :::details product.md
 # Product Overview
 
@@ -622,6 +631,8 @@ This is a Next.js web application project called "kiro-test" - a modern React-ba
 - Dark mode support
 - Production-ready deployment configuration
 :::
+### structure.md
+ファイル構成、命名規則、インポートパターン、アーキテクチャ上の決定事項を概説します。これにより、生成されたコードが既存のコードベースにシームレスに適合することが保証されます。
 :::details structure.md
 # Project Structure
 
@@ -667,6 +678,8 @@ Static assets served from root:
 - Relative imports for local files
 - Path alias `@/` available for root imports
 :::
+### tech.md
+選択したフレームワーク、ライブラリ、開発ツール、および技術的制約を文書化します。Kiro が実装を提案する際、既存のスタックが他の選択肢よりも優先されます。
 :::details tech.md
 # Technology Stack
 
@@ -711,6 +724,32 @@ npm run lint         # Run ESLint checks
 - Dark mode support via CSS media queries
 :::
 
+チャットを常に日本語で返して欲しいので、こんなのも追加しました。
+```steering/global.md
+---
+inclusion: always
+---
+
+#　プロジェクトガイドライン
+
+## 言語設定
+- **コミュニケーション**: 回答は常に日本語で行う
+```
+新たにルールを追加してみます
+```
+ディレクトリ名: 機能や役割が明確に分かる命名（例: NewFeatureListItemPage, Header）。
+ファイル名: ケバブケースかつ処理や役割が分かる命名にしてください。 (button.tsx, use-theme-color.ts)
+コンポーネント名: パスカルケースを使用します。（例: HeaderBreadcrumb, NewFeatureDropdown）。
+```
+その際の一連のやり取りを記載します。
+結論：普通に公式と違ってるやんけ！
+![](/images/kiro-cursor-diference/image12.png)
+![](/images/kiro-cursor-diference/image13.png)
+![](/images/kiro-cursor-diference/image14.png)
+
+# MCPに関してはこちらの記事に託します
+https://arc.net/l/quote/vjhlpwhz
+
 # cursorとの比較
 |  | kiro | cursor |
 | ---- | ---- | ---- |
@@ -718,9 +757,13 @@ npm run lint         # Run ESLint checks
 | Docs | ❌ | ⭕️ |
 | Agent Hooks | ⭕️ | 🔺 （ruleに記載すれば可能かも）|
 | MCP | ⭕️ | ⭕️ |
+| 修正するフォルダ指定 | ❌ | ⭕️ |
+| タブ保管 | ❌ | ⭕️ |
 
 個人的にコミットメッセージの自動生成はかなり助かっているので、ぜひkiroにも導入してほしいですね〜
+タブ保管は今後絶対に実装して欲しい（あったら本当にごめんなさい）
 
-
-# 初期セットアップ
-初期セットアップに関しては他の方も紹介されているので割愛します
+# 実装開始と行きたいが
+結構長くなってきているので前編、後編に分けようと思います。
+無限城編も分かれているので良いですよね？
+ではまた会いましょう〜
