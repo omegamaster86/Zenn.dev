@@ -4,7 +4,7 @@ emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["kiro","cursor","AI","AI駆動開発"]
 published: false
-published_at: 
+# published_at: 
 ---
 
 # はじめに
