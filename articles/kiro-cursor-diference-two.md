@@ -12,6 +12,7 @@ https://zenn.dev/omegamaster/articles/kiro-cursor-diference
 分けなくてもよかったかもと書き終えてから思いました…
 
 # 結論
+- Agent Hooksは素晴らしい！
 - 実装スピードが遅いとXで言われていますが、そんな気にならないかも
 - AI駆動開発はコンテキストや仕様が命
 - やっぱりタブ補完、コミットメッセージの自動生成は欲しい
@@ -19,6 +20,7 @@ https://zenn.dev/omegamaster/articles/kiro-cursor-diference
 
 # コードを変更した際のAgent Hooksの挙動
 今回は試しにNext.jsをセットアップした際のトップ画面を編集してみました。（適当にタグ追加しただけなので、コードは割愛）すると下記の動作をAgentが行ってくれました。
+cursorのrulesだと実行してくれないこともあるので、Agent Hooksはかなりポイント高いですね！
 ※前回の記事でファイルを変更したら、テストとドキュメント更新する指示を与えています。
 ![](/images/kiro-cursor-diference-two/image1.png)
 ![](/images/kiro-cursor-diference-two/image2.png)
@@ -218,6 +220,7 @@ Task ListでStart taskをクリックすると2枚目のようにsettingsの中�
 Taskが完了すると
 ![](/images/kiro-cursor-diference-two/image8.png)
 あとはTask Listが全てcompletedになるまで繰り返していきます！
+もちろん実装後に毎回Jestでテストもしてくれています！
 Xには実装時間が遅いと書かれていますが、そこまで気になりませんでした…皆さんAIがコード生成している時はX見たり、FA⚫︎ZA見たりしているので、そんなに気にしなくても良いかと…
 
 # 完成
