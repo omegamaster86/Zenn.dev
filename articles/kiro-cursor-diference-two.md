@@ -3,13 +3,17 @@ title: "新エディタのkiroとcursorを比較してみたんじゃ(コーデ�
 emoji: "👻"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["kiro","cursor","AI","AI駆動開発"]
-published: false
-# published_at: 2025-07-17 17:30
+published: true
+published_at: 2025-07-19 19:30
 ---
 # はじめに
 この記事は下記の記事の続きとなっておりますので、もしよければこちらもご覧ください。
 https://zenn.dev/omegamaster/articles/kiro-cursor-diference
-やっぱりclaude codeとの併用が一番な気がします。
+分けなくてもよかったかもと書き終えてから思いました…
+
+# 結論
+- 実装スピードが遅いとXで言われていますが、そんな気にならないかも
+- AI駆動開発はコンテキストや仕様が命
 
 # コードを変更した際のAgent Hooksの挙動
 今回は試しにNext.jsをセットアップした際のトップ画面を編集してみました。（適当にタグ追加しただけなので、コードは割愛）すると下記の動作をAgentが行ってくれました。
@@ -204,3 +208,21 @@ AIにパッケージインストールしてもらうことは多々あると思
     - ユーザーインタラクションのテストを追加する
     - _要件: 全要件の品質保証_
 :::
+Task ListでStart taskをクリックすると2枚目のようにsettingsの中身を自動的に見にいってくれます。当然足りないパッケージ等はインストールしてくれます。
+![](/images/kiro-cursor-diference-two/image6.png)
+![](/images/kiro-cursor-diference-two/image5.png)
+簡易的なテストファイルも作成し、動作確認して問題がなければ削除もしてくれます。
+![](/images/kiro-cursor-diference-two/image7.png)
+Taskが完了すると
+![](/images/kiro-cursor-diference-two/image8.png)
+あとはTask Listが全てcompletedになるまで繰り返していきます！
+Xには実装時間が遅いと書かれていますが、そこまで気になりませんでした…皆さんAIがコード生成している時はX見たり、FA⚫︎ZA見たりしているので、そんなに気にしなくても良いかと…
+
+# 完成
+![](/images/kiro-cursor-diference-two/image9.png)
+Jestでもテストしていたおかげでエラーなく、仕様どうりの挙動になっています。
+またAI駆動開発はコンテキストが命なので、仕様書をしっかり定義するとしっかり実装してくれます。
+しかし、steeringフォルダの内容が常に反映されているかと言われると怪しいので、ここは他のツール同様適宜確認してあげてください。
+
+# 最後に
+この記事が誰かの役に立てれば幸いです。
