@@ -6,6 +6,9 @@ topics: ["kiro","cursor","AI","AI駆動開発"]
 published: false
 published_at: 2025-07-19 19:30
 ---
+
+別記事と分けていたが、統合することにしたので、published: false
+
 # はじめに
 この記事は下記の記事の続きとなっておりますので、もしよければこちらもご覧ください。
 https://zenn.dev/omegamaster/articles/kiro-cursor-diference
