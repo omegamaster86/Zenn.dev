@@ -3,7 +3,7 @@ title: "新エディタのkiroとcursorを比較してみたんじゃ(コーデ�
 emoji: "👻"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["kiro","cursor","AI","AI駆動開発"]
-published: true
+published: false
 published_at: 2025-07-19 19:30
 ---
 # はじめに
