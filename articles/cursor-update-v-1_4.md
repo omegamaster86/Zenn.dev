@@ -1,5 +1,5 @@
 ---
-title: "CursorのV1.3とV1.4+周辺情報 & Cursor CLIが出たんじゃ"
+title: "CursorのV1.3とV1.4+周辺情報が出たんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
