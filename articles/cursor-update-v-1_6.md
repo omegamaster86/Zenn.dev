@@ -3,8 +3,8 @@ title: "CursorのV1.5とV1.6+周辺情報が出たんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
-published: false
-# published_at: 2025-08-17 16:00
+published: true
+published_at: 2025-09-22 09:30
 ---
 
 # 初めに
@@ -100,3 +100,6 @@ https://modelcontextprotocol.io/specification/2025-06-18/server/resources
 ### Agentターミナルの大規模改善
 エージェントがシェル コマンドを実行するためのターミナルを作成することを決定した場合、環境の安定性と信頼性が大幅に向上します。
 これにより、タスクの完了時にターミナル コマンドがハングしたり、正常に終了しなかったりする既知の問題が解決され、SSH エクスペリエンスも向上します。
+
+# 最後に
+いかがですか？正直目ぼしい機能はカスタムスラッシュコマンドだけだったような気がしますが、これからもアップデートに期待しましょう！
