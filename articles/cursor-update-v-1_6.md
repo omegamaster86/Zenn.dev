@@ -1,5 +1,5 @@
 ---
-title: "CursorのV1.5とV1.6+周辺情報が出たんじゃ"
+title: "CursorのV1.5とV1.6について調査したんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
