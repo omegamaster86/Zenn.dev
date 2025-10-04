@@ -52,4 +52,57 @@ exit 0
 下記を実行することで可能にする。
 `chmod +x ~/.cursor/hooks/format.sh`
 再起動後、ファイルを編集するたびにフックが実行されます。
+### 設定
+`hooks.json`ファイルでフックを定義します。設定は複数レベルで指定でき、優先度の高いソースが低いソースを上書きします。
+```
+~/.cursor/
+├── hooks.json
+└── hooks/
+    ├── audit.sh
+    ├── block-git.sh
+    └── redact-secrets.sh
+```
+ホームディレクトリ（ユーザー管理）:`~/.cursor/hooks.json`
+`hooks`オブジェクトは、フック名をフック定義の配列に対応付けます。各定義は現在 `command`プロパティをサポートしており、シェル文字列、絶対パス、または`hooks.jsonファイル`からの相対パスを指定できます。
+```
+{
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      { "command": "./script.sh" }
+    ],
+    "afterFileEdit": [
+      { "command": "./format.sh" }
+    ]
+  }
+}
+```
+公式に複数のhookイベントが記載されていますので、是非見に行ってみてください
+https://cursor.com/ja/docs/agent/hooks#
+これが個人的に役に立ちそうな気がしています。
+beforeShellExecution / beforeMCPExecution
+任意のシェルコマンドまたはMCPツールの実行前に呼び出されます。許可の可否を返します。
+```
+// beforeShellExecution 入力
+{
+  "command": "<完全なターミナルコマンド>",
+  "cwd": "<現在の作業ディレクトリ>"
+}
 
+// beforeMCPExecution 入力
+{
+  "tool_name": "<ツール名>",
+  "tool_input": "<JSONパラメータ>"
+}
+// 加えて以下のいずれか:
+{ "url": "<サーバーURL>" }
+// または:
+{ "command": "<コマンド文字列>" }
+
+// 出力
+{
+  "permission": "allow" | "deny" | "ask",
+  "userMessage": "<クライアントに表示されるメッセージ>",
+  "agentMessage": "<エージェントに送信されるメッセージ>"
+}
+```
