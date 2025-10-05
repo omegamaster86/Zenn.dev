@@ -3,8 +3,8 @@ title: "CursorのV1.7とBrowser Automationについて調査したんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
-published: false
-# published_at: 2025-09-22 09:30
+published: true
+published_at: 2025-10-05 17:00
 ---
 # 初めに
 cursorのV1.7がリリースされました！
