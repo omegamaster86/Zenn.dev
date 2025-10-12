@@ -5,6 +5,7 @@ type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["react","Next.js","TypeScript","stripe",]
 published: true
 published_at: 2025-04-07 09:30
+publication_name: "genai"
 ---
 
 # 初めに

@@ -5,6 +5,7 @@ type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["kiro","cursor","AI","AI駆動開発", "zennfes2025free"]
 published: true
 published_at: 2025-07-17 17:30
+publication_name: "genai"
 ---
 
 # はじめに

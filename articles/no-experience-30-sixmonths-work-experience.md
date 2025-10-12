@@ -5,6 +5,7 @@ type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["未経験","受託開発"]
 published: true
 published_at: 2025-03-16 11:00
+publication_name: "genai"
 ---
 
 # 初めに

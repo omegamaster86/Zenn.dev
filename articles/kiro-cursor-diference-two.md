@@ -5,6 +5,7 @@ type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["kiro","cursor","AI","AI駆動開発"]
 published: false
 published_at: 2025-07-19 19:30
+publication_name: "genai"
 ---
 
 別記事と分けていたが、統合することにしたので、published: false

@@ -5,6 +5,7 @@ type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["React","Next","HTML","useRef"]
 published: true
 published_at: 2025-06-23 09:00
+publication_name: "genai"
 ---
 
 # はじめに
