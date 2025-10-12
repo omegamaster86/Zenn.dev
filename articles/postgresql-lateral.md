@@ -31,7 +31,6 @@ LEFT JOIN LATERAL (
 - `ON TRUE` は常に結合（サブクエリ内で条件指定済みのため）
 
 ### LATERAL の重要な特徴
-
 特徴1: 左側のテーブルを参照できる
 
 ```jsx
@@ -53,10 +52,9 @@ LEFT JOIN LATERAL (
 ```
 
 ### 特徴2: 行ごとに動的に実行
-
 左側の各行に対して、サブクエリが個別に実行されます。
 
-## 5. LEFT JOIN LATERAL のユースケース
+## LEFT JOIN LATERAL のユースケース
 
 | ユースケース | 説明 |
 | --- | --- |
