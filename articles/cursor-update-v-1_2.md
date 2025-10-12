@@ -2,7 +2,7 @@
 title: "cursorの新しいProの価格設定の仕組みとV1.2が出たんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["cursor","AI","AI駆動開発"]
+topics: ["cursor","AI","AI駆動開発", "zennfes2025free"]
 published: true
 published_at: 2025-07-06 11:00
 ---
