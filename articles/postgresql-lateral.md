@@ -3,6 +3,7 @@ title: "PostgreSQLのLATERALに関して調べてみたんじゃ"
 emoji: "⏳"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["PostgreSQL", "LATERAL"]
+publication_name: "genai"
 published: true
 published_at: 2025-10-12 20:00
 ---
