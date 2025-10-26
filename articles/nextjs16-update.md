@@ -1,5 +1,5 @@
 ---
-title: "Next.js16について調査したんじゃ"
+title: "Next.js16公式とβ版について調査したんじゃ"
 emoji: "🚀"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Next.js"]
@@ -36,3 +36,32 @@ export default nextConfig;
 :::
 
 # Next.js Devtools MCP
+MCPに関してはもうみなさん知っていると思うので、できそうなことが
+
+
+
+# ミドルウェアの`proxy.ts`への移行
+Next.js 16では、カスタムミドルウェアとして機能していた`middleware.ts`ファイルが非推奨となり、代わりにproxy.tsファイルを使用するよう変更が加えられました。proxy.tsはNode.jsランタイム上で実行されるため、アプリケーションのネットワーク境界を明確化する役割を果たします。（Edge Runtimeではなく常にNode.jsで動作するようです）
+:::message
+このmiddleware.tsファイルは Edge ランタイムの使用例では引き続き使用できますが、非推奨となっており、将来のバージョンでは削除される予定です。by公式より
+:::
+使い方としては、プロジェクト内のmiddleware.tsファイルを**proxy.tsにリネーム**し、エクスポートされている関数名もproxyに変更するだけです。（ロジックの内容はそのまま使用可能）
+例えば、以下のように既存のミドルウェアをリネームします
+```
+// 旧: middleware.ts → 新: proxy.ts
+export default function proxy(request: NextRequest) {
+  return NextResponse.redirect(new URL('/home', request.url));
+}
+```
+
+https://nextjs.org/docs/app/getting-started/proxy
+
+# ログの改善
+ビルドおよび開発サーバー実行時のログ出力が強化され、処理の内訳や所要時間がより明確に表示されるようになりました。開発中にターミナル上に表示されるリクエストログでは、新たに各処理がどのフェーズで時間を消費しているかが示されます。
+コンパイル: ルーティングとコンパイル
+レンダリング: コードの実行とReactレンダリング
+![](/images/nextjs16-update/1.png)
+ビルド機能も拡張され、時間がかかった箇所も表示されるようになりました。ビルドプロセスの各ステップと、完了にかかった時間が表示されるようになりました。
+![](/images/nextjs16-update/2.png)
+
+# Next.js16のβ版での発表
