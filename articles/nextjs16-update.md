@@ -65,3 +65,71 @@ https://nextjs.org/docs/app/getting-started/proxy
 ![](/images/nextjs16-update/2.png)
 
 # Next.js16のβ版での発表
+### Turbopackのデフォルト採用とパフォーマンス向上
+Turbopackは開発ビルドと本番ビルドの両方で安定稼働を達成し、すべての新規Next.jsプロジェクトのデフォルトバンドラーとなりました。ベータリリース以降、採用は急速に拡大しており、Next.js 15.3以降では開発セッションの50%以上と本番ビルドの20%が既にTurbopack上で実行されています。
+Turbopack を使用すると、次のことが期待できます。
+- 2～5倍高速なプロダクションビルド
+- 最大10倍高速な高速リフレッシュ
+これらのパフォーマンス向上をすべてのNext.js開発者に提供するため、Turbopackがデフォルトになりました。特段設定は不要です。カスタムWebpack設定を使用しているアプリの場合は、以下のコマンドを実行することで引き続きWebpackを使用できます。
+```
+next dev --webpack
+next build --webpack
+```
+### Turbopack ファイル システム キャッシュ
+Turbopack は開発時にファイルシステム キャッシュをサポートするようになりました。これにより、実行間でコンパイラ成果物がディスクに保存され、特に大規模プロジェクトでは再起動後のコンパイル時間が大幅に短縮されます。
+```: nextConfig
+const nextConfig = {
+  experimental: {
+    turbopackFileSystemCacheForDev: true,
+  },
+};
+ 
+export default nextConfig;
+```
+すべての社内 Vercel アプリではすでにこの機能が使用されており、大規模なリポジトリ全体で開発者の生産性が著しく向上していることが確認されているようです。by公式
+
+### create-next-appの簡素化
+- App Routerの採用: 新しいルーティングシステム（appディレクトリ構造）を既定で利用
+- TypeScriptサポート: プロジェクトがTypeScriptファーストで構成され、型定義が最初から利用可能
+- Tailwind CSSの統合: 人気のCSSフレームワークであるTailwind CSSが標準でセットアップ
+- ESLintの組み込み: コード品質ツールとしてESLintが設定済みでプロジェクトが開始
+これらにより、開発者はプロジェクト生成直後から最新のベストプラクティスが反映された環境で開発を開始できます。
+![](/images/nextjs16-update/3.png)
+
+### npx create-next-appを実行した場合
+![](/images/nextjs16-update/4.png)
+Yes, use recommended defaultsを選択すると下記の設定で
+TypeScript, ESLint, Tailwind CSS, App Router, Turbopack
+No, reuse previous settingsを選択すると下記の設定で
+TypeScript, Biome, Tailwind CSS, App Router, Turbopack
+PJを開始できます。
+Biomeを使用したい方はnpx create-next-appの方が良いですね
+
+### React Compilerサポートの安定化
+Reactコンパイラ1.0のリリースに伴い、Next.js 16ではReactコンパイラの組み込みサポートが安定しました。Reactコンパイラはコンポーネントを自動的にメモ化し、手動によるコード変更を一切行わずに不要な再レンダリングを削減します。
+Next.js 15.xではexperimental.reactCompilerオプションとして試験提供されていましたが、16では設定項目reactCompilerが正式に安定版へ昇格しました。`next.config.ts`で以下のように指定することでReact Compilerを有効にできます。
+```nextConfig
+const nextConfig = {
+  reactCompiler: true,
+};
+export default nextConfig;
+```
+React Compilerを有効にすると、ビルド時および開発中のコンパイル時間が増加する可能性がある点には注意が必要です。これは、React CompilerがBabelを介してコードを解析・変換するためで、特に大規模アプリケーションではビルド所要時間が長くなることがあります。現時点ではデフォルト無効とされていますので、使用する場合には`npm install babel-plugin-react-compiler@latest`を実行してください。
+
+### レイアウトの重複読み込みの排除（Layout Deduplication）
+複数のページ/リンク間で共有されるレイアウトコンポーネントは、一度だけダウンロードすれば済むようになりました。例えば、50個の商品リンクがあるページでそれらすべてが同じレイアウトを共有する場合、従来は各リンクの事前フェッチで同じレイアウトを重複してダウンロードしていましたが、Next.js 16では共通レイアウトを一度だけ取得し50回分の重複転送を削減します。これによりネットワーク帯域の無駄が大幅に削減されます。
+
+### インクリメンタルなプリフェッチ（Incremental Prefetching）
+Next.js 16では事前読み込みの挙動がよりスマートになり、キャッシュにない部分だけをフェッチするように変更されました。具体的には、キャッシュ済みでないデータやコードのみを対象にプリフェッチを行い、既に取得済みの部分は再取得しません。プリフェッチキャッシュは下記のようになります。
+- リンクがビューポートから外れるとリクエストをキャンセルします
+- ホバー時またはビューポートに再度入ったときにリンクのプリフェッチを優先します
+- データが無効になったときにリンクを再プリフェッチします
+- キャッシュコンポーネントなどの今後の機能とシームレスに連携します
+これらの改良により、ページ遷移時の体感速度が向上し、不要なデータ通信を抑えつつ必要なリソースを先読みすることで全体的な効率が上がります。トレードオフとして、従来よりもプリフェッチのリクエスト数自体は増加する可能性がありますが、総通信量は削減されるため多くの場合に有益の可能性があります。
+プリフェッチをオンにしていると、不要なプリフェッチが「エッジリクエスト」を増やす原因となり、料金に影響を与える場合があるので、特段不要なら使用しない方が良いと思います。
+
+### キャッシュAPIの改善
+
+### 
+
+### 
