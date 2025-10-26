@@ -147,11 +147,169 @@ revalidateTag('products', { revalidate: 3600 });
 'max'プロファイルを使うと、キャッシュされたデータを即座に返しつつバックグラウンドで再検証を行うSWR動作となり、ユーザーには古いデータでもすぐ応答しつつ裏で更新が走ります。
 revalidateTag('blog-posts')のように引数1つだけで呼び出していた場合は非推奨となり、自身が発行した書き込みを即座に反映させたい（直後の読み出しで最新化したい）場合には、updateTagの使用が推奨されています。
 
+#### そもそもrevalidateTagって？
+「タグ付きでキャッシュされたデータ」を任意のタイミングで再検証（SWR）させるAPIです。`fetch(..., { next: { tags } })` や `unstable_cache(..., { tags })` で付けたタグに対して呼び出します。
+いつ使う？
+- **DB更新やWebhook受信の直後**に一覧・詳細などの「データキャッシュ」を新鮮化したいとき
+- **ISRの待ち時間をスキップ**して、必要な瞬間だけ最新化をトリガーしたいとき
+- 同じデータを使う複数ルートを、**URLに依らず横断的に更新**したいとき
+
+どこで呼べる？（サーバーのみ）
+Server Actions / Route Handlers / サーバーコンポーネント / Edge Runtime など
+
+何に効く？
+`fetch(GET)` の Data Cache と `unstable_cache` の結果。HTMLそのものではなく「データ」のキャッシュが対象
+
+使い方（基本）
+1) 取得側でタグを付ける
+```ts
+// fetch にタグを付ける
+const res = await fetch('https://api.example.com/posts', {
+  next: { tags: ['posts'] },
+});
+const posts = await res.json();
+```
+
+```ts
+// unstable_cache にタグを付ける
+import { unstable_cache } from 'next/cache';
+
+export const getPost = unstable_cache(
+  async (id: string) => {
+    // DBや外部APIから取得
+  },
+  ['getPost', /* key */],
+  { tags: ['posts', (id) => `post:${id}`] }
+);
+```
+
+2) 変更側で再検証をトリガーする
+```ts
+'use server';
+import { revalidateTag } from 'next/cache';
+
+export async function createPost(input: { title: string }) {
+  // 何らかの書き込み
+  // await db.post.create({ data: input });
+
+  // SWR再検証（既存キャッシュは即返しつつ裏で更新）
+  revalidateTag('posts', 'max');
+}
+```
+
+```ts
+// Webhookを受けて単一エンティティだけ再検証
+import { revalidateTag } from 'next/cache';
+
+export async function POST(req: Request) {
+  const { id } = await req.json();
+  revalidateTag(`post:${id}`, { revalidate: 60 });
+  return new Response('ok');
+}
+```
+
+関連APIの使い分け
+- revalidateTag: データ単位（タグ）でSWR再検証。横断的に共有データを更新したいとき。
+- revalidatePath: ページ単位（URL）のレンダリング結果を無効化。特定ページを手っ取り早く更新したいとき。
+
+落とし穴/注意
+- タグ未付与のデータには効果なし（必ず取得側でタグを付ける）
+- クライアント側からは直接呼べない（必要なら `router.refresh()` などで再描画を促す）
+- `fetch` は GET のキャッシュが対象。POST/PUTの取得は対象外
+
 #### updateTag()
+**ServerActions専用の新API**であるupdateTagは、上記revalidateTagとは異なり「書き込み直後にその変更を即座に読み出せる」(read-your-writes) 一貫性を提供します。例えばユーザープロファイルを更新するアクション内でupdateTag('user-<id>')を呼び出すと、指定タグのキャッシュを即時に失効 (expire)させた上で最新データに更新し、同一リクエスト内で反映させることができます。これにより、フォーム送信直後にユーザー設定が画面に反映される、といった即時性の求められる機能に適しています。従来のrevalidateTagだと次のリクエストまで更新が反映されない場合がありましたが、updateTagは同一処理内でキャッシュを更新するため、ユーザーに一貫した最新の状態をすぐ提示できます。
+```
+'use server';
+ 
+import { updateTag } from 'next/cache';
+ 
+export async function updateUserProfile(userId: string, profile: Profile) {
+  await db.users.update(userId, profile);
+ 
+  // Expire cache and refresh immediately - user sees their changes right away
+  updateTag(`user-${userId}`);
+}
+```
 
+#### refresh()
+もう一つの**Server Actions専用API**としてrefresh()が追加されました。この関数は**キャッシュされていないデータのみを更新するため**の、新しいサーバーアクション専用APIです。
+例えば通知アイコンの未読数、ライブメトリック、ステータスインジケーターなど、ページ全体とは別に取得しておりキャッシュしていないデータを更新するケースで利用できます。refresh()を実行すると、クライアントサイドで提供されているrouter.refresh()と同様に、表示中ページを再レンダリングしますが、キャッシュ済みの部分には影響を与えません。そのため、ページの静的部分やキャッシュされたシェルは高速なまま、通知数やライブデータといった部分だけを更新することが可能です。
 
-#### 
+#### updateTag()とrefresh()の使い分け
+「キャッシュされたデータ (タグ付き) を即時更新したい場合は updateTag、キャッシュしていない生データを更新したい場合は refresh」と使い分けることで、柔軟なデータ更新戦略が取れるようになります。
+```
+'use server';
+ 
+import { refresh } from 'next/cache';
+ 
+export async function markNotificationAsRead(notificationId: string) {
+  // Update the notification in the database
+  await db.notifications.markAsRead(notificationId);
+ 
+  // Refresh the notification count displayed in the header
+  // (which is fetched separately and not cached)
+  refresh();
+}
+```
+### React 19.2 と Canary 機能
+Next.js 16のApp Router（appディレクトリ）は、Reactの最新Canary（開発版）リリースを採用しており、React 19.2の新機能にも対応しています。
+React 19.2の詳細な内容はこちらです。ここは省略させてください（書き疲れたのは秘密で）
+https://react.dev/blog/2025/10/01/react-19-2
 
-### 
+### 削除された機能
+過去のバージョンで非推奨と告知されていた機能・APIのいくつかは、Next.js 16で完全に削除されました。主な削除項目と代替・対応方法は下記の通りです。
+- AMPサポートの削除: 旧来のAMP対応機能（例：useAmpフックやページコンフィグでamp: trueを指定する方法）は廃止されました。AMPビルド専用の仕組みはNext.js本体から取り除かれています。
+- next lint コマンド削除: Next.js付属のnext lintコマンドは削除されました。代替としては、ESLint自体やFacebook製の静的解析ツールBiomeを直接使用することが推奨されます。なお、移行を支援するコード修正ツール（Codemod）として、npx @next/codemod@canary next-lint-to-eslint-cli .が提供されています。
+- 開発インジケータ関連オプション削除: next.config.js内のdevIndicators設定で使用されていたappIsrStatus、buildActivity、buildActivityPositionといったオプションは削除されました。ビルドやISRの状況を示すインジケータ自体は残っていますが、これらをカスタマイズする設定項目がなくなった形です。
+- Runtime Config (serverRuntimeConfig / publicRuntimeConfig) 削除: Next.jsで古くから提供されていたランタイム設定は廃止されました。serverRuntimeConfigおよびpublicRuntimeConfigに依存していたコードは、.envファイルや環境変数を用いた設定管理に移行する必要があります。
+- Turbopack設定オプションの場所変更: next.config.js内でTurbopackを有効化するフラグの設定場所が変わりました。以前はexperimental.turbopack配下でしたが、Next.js 16ではトップレベルのturbopackプロパティに移動しています（既にTurbopackは実験段階を脱したため）。既存設定がある場合は書き換えが必要です。
+- experimental.dynamicIO フラグ削除: これはCache Components以前に存在した試験的機能で、Next.js 16では**cacheComponents設定にリネーム**されたため旧フラグは削除されました。
+- PPR関連設定の削除: 先述した通りexperimental.pprのグローバル設定や、ルートレベルでexport const experimental_ppr = ...と宣言する仕組みは削除されました。PPRの概念はCache Componentsに吸収されたためです。
+- 自動scroll-behavior: smoothの削除: Next.jsはページ遷移時にスムーススクロールを自動適用していましたが、16ではそれが廃止されました。代替として、<html>タグにdata-scroll-behavior="smooth"属性を付与することで同様の効果を opt-in で得られます。
+- unstable_rootParams()の削除: 特定の不安定APIであったunstable_rootParamsは削除されました（今後代替のAPIがマイナーバージョンで提供予定とのことです）。
 
-### 
+以上の削除に該当する機能を使っている場合、Next.js 16にアップグレードするとビルドエラーやランタイムエラーが発生するため、事前にコード修正や設定変更が必要です。
+https://nextjs.org/blog/next-16#removals
+
+### 既定動作の変更
+一部のデフォルト設定や動作が変更されています。変更内容は下記の通りです。
+- デフォルトのバンドラ: 既述の通りTurbopackがデフォルトになりました。既存アプリを16にアップグレードすると自動的にTurbopackが使われます（Webpackを使い続けるには手動でフラグ指定する必要あり）。
+
+- images.minimumCacheTTLのデフォルト延長: Next.jsの画像最適化で、キャッシュの最小TTL（Time To Live）が60秒から4時間(14400秒)に延長されました。これにより、キャッシュ制御ヘッダのない画像でも頻繁に再検証されず、デフォルトで長めにキャッシュされるようになります。
+
+- images.imageSizesのデフォルト変更: <Image>コンポーネントで用いるレスポンシブ画像の生成サイズ一覧から、16ピクセル幅のエントリが削除されました（ほとんど使われていなかったため）。これにより不要な小サイズのsrcsetと追加リクエストが減り、画像最適化の効率が向上します。
+
+- images.qualitiesのデフォルト変更: 画像クオリティ設定のデフォルトが[1, 2, ..., 100]（1から100まで全て）から**[75]（75のみ）**に簡素化されました。それに伴い、<Image>のqualityプロパティに任意の数値を指定しても、最も近い値（デフォルトでは常に75）に丸められます。開発者は必要に応じてimages.qualitiesを明示的に設定することになります。
+
+- images.dangerouslyAllowLocalIPのデフォルト変更: セキュリティ向上のため、ローカルIPアドレスに対する画像最適化（例: 社内ネットワークの画像URLなど）はデフォルトでブロックされるようになりました。ローカルネットワーク内の画像を扱う場合は、この設定をtrueにしないと最適化が働かない点に注意してください（一般的な公開サイトでは通常不要な機能です）。
+
+- images.maximumRedirectsのデフォルト設定: 画像最適化時に許容するリダイレクト回数が無制限から3回までに変更されました。これにより無限リダイレクトによるリソース浪費が防がれます（必要に応じて0に設定してリダイレクト禁止、またはさらに数値を増やすことも可能です）。
+
+- ESLintプラグインのデフォルト設定: @next/eslint-plugin-nextがデフォルトでESLint Flat Config形式を使うようになりました。これは近くリリース予定のESLint v10で従来の設定形式が廃止されることを見据えた変更です。開発者側の対応は通常不要ですが、Flat Config形式への移行を念頭に置いておくと良いでしょう。
+
+- プリフェッチキャッシュ動作: 前述の通りレイアウト重複排除とインクリメンタルプリフェッチが導入され、リンク事前取得の挙動が刷新されました。既存アプリでは自動的にこの新しい動作となり、開発者が手動で変更する必要はありません。
+
+- revalidateTag()のシグネチャ: 上述した通り、revalidateTag(tag)のような引数一つの呼び出しは非推奨となり、デフォルトでは第二引数が必須の扱いに変わりました（16へのアップグレード時には対応が必要）。
+
+- Turbopack使用時のBabel設定: Next.js 16では、Turbopack実行時にプロジェクトにBabel設定ファイルが存在すると自動的にBabelによる変換を有効化するようになりました。以前はBabel設定があるとエラーでビルドが停止していましたが、16ではWebpack同様にBabelを併用可能です（互換性向上）。
+
+- ターミナル出力の刷新: 前述したログ改善に関連して、開発サーバー・ビルド時のターミナル出力のフォーマットが一新されています。より見やすいレイアウトや改善されたエラーメッセージ、パフォーマンス計測値の表示など、開発者が情報を把握しやすい出力に変わりました。
+
+- 開発とビルドの出力ディレクトリ分離: next dev（開発）とnext build（プロダクションビルド）で別々の出力ディレクトリを使うようになりました。これにより、同じプロジェクトで開発サーバーを起動しながら別プロセスでビルドを実行するといった並行実行が可能になっています（以前は同じ.nextフォルダを使用していたため競合していました）。
+
+- ロックファイル機構: 複数のnext devやnext buildを同一プロジェクトで誤って同時実行した場合の問題を防ぐため、ロックファイルによる排他制御が導入されました。これにより、意図しない競合実行を検知して警告することで、開発者のミスを減らします。
+
+- Parallel Routesでのdefault.js必須化: App RouterのParallel Routes機能を使用している場合、各並行ルートのスロットに**default.jsファイルを明示的に配置**することが必須となりました。従来はスロットを埋めないとき省略可能でしたが、16ではビルド時に存在しないスロットがあるとエラーになります。空のスロットにはdefault.jsを作成し、中でnotFound()を呼び出すかnullを返す実装を入れることで対応できます。
+
+- Sassローダーのアップデート: Next.js内蔵のSass処理が利用するsass-loaderがv16にバージョンアップされました。これにより最新のSass文法や新機能に対応しています。
+
+### 非推奨となった機能
+- middleware.tsのファイル名: 前述の通り、middleware.tsは**proxy.tsへのリネーム**が推奨されています（現時点では動作しますが非推奨扱い）。将来のバージョンではmiddleware.tsはサポートされなくなる予定です。
+
+- next/legacy/image コンポーネント: 旧版の画像コンポーネントであるnext/legacy/imageは非推奨となりました。**next/image**コンポーネントへの移行が必要です。新しいnext/imageはパフォーマンスや機能面で強化されているため、可能な限り早めに切り替えてください。
+
+- images.domains 設定: next.configで特定のドメインの画像を最適化許可するためのimages.domains設定は非推奨になりました。代替として、**images.remotePatterns**設定を使用してください（より柔軟でセキュアなホスト許可設定が可能です）。
+
+- revalidateTag()の引数省略: 先述の通り、revalidateTag('tag')のような単一引数呼び出しは非推奨です。revalidateTag(tag, profile)を指定するか、即時反映が必要な場合はupdateTag(tag)（Server Actions内）を使用するようにコードを更新してください。
+
