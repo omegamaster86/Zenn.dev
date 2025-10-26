@@ -3,8 +3,8 @@ title: "Next.js16公式とβ版について調査したんじゃ"
 emoji: "🚀"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Next.js"]
-published: false
-# published_at: 2025-10-05 17:00
+published: true
+published_at: 2025-10-27 09:00
 publication_name: "genai"
 ---
 # 初めに
@@ -375,3 +375,7 @@ https://nextjs.org/blog/next-16#behavior-changes
 - revalidateTag()の引数省略: 先述の通り、revalidateTag('tag')のような単一引数呼び出しは非推奨です。revalidateTag(tag, profile)を指定するか、即時反映が必要な場合はupdateTag(tag)（Server Actions内）を使用するようにコードを更新してください。
 
 https://nextjs.org/blog/next-16#deprecations
+
+# 最後に
+長らくお付き合いいただきありがとうございました。
+この記事が誰かの助けになれば幸いです。
