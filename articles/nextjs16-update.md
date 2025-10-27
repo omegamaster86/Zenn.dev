@@ -2,7 +2,7 @@
 title: "Next.js16公式とβ版について調査したんじゃ"
 emoji: "🚀"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["Next.js"]
+topics: ["Next.js","React"]
 published: true
 published_at: 2025-10-27 09:00
 publication_name: "genai"
