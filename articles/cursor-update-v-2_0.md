@@ -3,8 +3,8 @@ title: "CursorのV2.0がリリースされたんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
-published: true
-published_at: 2025-11-01 21:30
+published: false
+# published_at: 2025-11-01 21:30
 publication_name: "genai"
 ---
 # 初めに
