@@ -23,3 +23,72 @@ revalidateTag は指定したタグに紐づくキャッシュデータをオン
 タグ付きキャッシュデータを扱うため、あらかじめfetch関数のオプション`next: { tags: [...] }`でタグを付与するか、`'use cache'`指令を用いる関数内で`cacheTag('tagName')`を指定してデータにタグ付けしておく必要があります。
 ### SSRでの使用例
 新規ユーザー情報更新後に該当データのタグを再検証（無効化）する例です。データ変更後に`revalidateTag('user', 'max')`を呼び出すことで、タグ"user"に関連するあらゆるページのキャッシュを stale 状態にし、次回アクセス時にバックグラウンドで最新データへ更新させます（ユーザーには旧データが瞬時に表示され続け、更新完了後に新データに差し替わります）。
+こんな感じになるかな
+```:ts
+'use server';
+
+import { revalidateTag } from 'next/cache';
+import { updateUser } from '@/app/lib/user-store';
+
+export type UpdateUserFormState = {
+  status: 'idle' | 'success' | 'error';
+  message: string;
+  refreshedAt?: string;
+};
+
+const trimString = (value: FormDataEntryValue | null) => {
+  return typeof value === 'string' ? value.trim() : '';
+};
+
+export async function updateUserAction(
+  _prevState: UpdateUserFormState | undefined,
+  formData: FormData,
+): Promise<UpdateUserFormState> {
+  const id = trimString(formData.get('id'));
+  const name = trimString(formData.get('name'));
+  const email = trimString(formData.get('email'));
+  const bio = trimString(formData.get('bio'));
+  const role = trimString(formData.get('role'));
+
+  if (!id) {
+    return {
+      status: 'error',
+      message: 'ユーザーIDが取得できませんでした。',
+    };
+  }
+
+  const payload: Parameters<typeof updateUser>[1] = {};
+
+  if (name) payload.name = name;
+  if (email) payload.email = email;
+  if (bio) payload.bio = bio;
+  if (role === 'admin' || role === 'member') payload.role = role;
+
+  if (Object.keys(payload).length === 0) {
+    return {
+      status: 'error',
+      message: '変更内容を入力してください。',
+    };
+  }
+
+  try {
+    const result = await updateUser(id, payload);
+
+    revalidateTag(`user:${id}`, 'max');
+
+    return {
+      status: 'success',
+      message: 'ユーザー情報を更新しました。',
+      refreshedAt: result.updatedAt,
+    };
+  } catch (error) {
+    console.error(error);
+    return {
+      status: 'error',
+      message: '更新処理でエラーが発生しました。',
+    };
+  }
+}
+```
+個人的には`revalidateTag`を使用するなら後で記載する`updateTag`を使用するかなと思います。`revalidateTag`がデータをすぐに最新化する必要がない時に使用するとは書きましたが、最新の方がいいんじゃん？と思っています。
+
