@@ -23,72 +23,19 @@ revalidateTagは指定したタグに紐づくキャッシュデータをオン�
 タグ付きキャッシュデータを扱うため、あらかじめfetch関数のオプション`next: { tags: [...] }`でタグを付与するか、`'use cache'`指令を用いる関数内で`cacheTag('tagName')`を指定してデータにタグ付けしておく必要があります。
 ### SSRでの使用例
 新規ユーザー情報更新後に該当データのタグを再検証（無効化）する例です。データ変更後に`revalidateTag('user', 'max')`を呼び出すことで、タグ"user"に関連するあらゆるページのキャッシュを stale 状態にし、次回アクセス時にバックグラウンドで最新データへ更新させます（ユーザーには旧データが瞬時に表示され続け、更新完了後に新データに差し替わります）。
-こんな感じになるかな
-```:ts
+簡易バージョン
+```ts
 'use server';
 
 import { revalidateTag } from 'next/cache';
-import { updateUser } from '@/app/lib/user-store';
 
-export type UpdateUserFormState = {
-  status: 'idle' | 'success' | 'error';
-  message: string;
-  refreshedAt?: string;
-};
-
-const trimString = (value: FormDataEntryValue | null) => {
-  return typeof value === 'string' ? value.trim() : '';
-};
-
-export async function updateUserAction(
-  _prevState: UpdateUserFormState | undefined,
-  formData: FormData,
-): Promise<UpdateUserFormState> {
-  const id = trimString(formData.get('id'));
-  const name = trimString(formData.get('name'));
-  const email = trimString(formData.get('email'));
-  const bio = trimString(formData.get('bio'));
-  const role = trimString(formData.get('role'));
-
-  if (!id) {
-    return {
-      status: 'error',
-      message: 'ユーザーIDが取得できませんでした。',
-    };
-  }
-
-  const payload: Parameters<typeof updateUser>[1] = {};
-
-  if (name) payload.name = name;
-  if (email) payload.email = email;
-  if (bio) payload.bio = bio;
-  if (role === 'admin' || role === 'member') payload.role = role;
-
-  if (Object.keys(payload).length === 0) {
-    return {
-      status: 'error',
-      message: '変更内容を入力してください。',
-    };
-  }
-
-  try {
-    const result = await updateUser(id, payload);
-
-    revalidateTag(`user:${id}`, 'max');
-
-    return {
-      status: 'success',
-      message: 'ユーザー情報を更新しました。',
-      refreshedAt: result.updatedAt,
-    };
-  } catch (error) {
-    console.error(error);
-    return {
-      status: 'error',
-      message: '更新処理でエラーが発生しました。',
-    };
-  }
+export async function updateUser(id: string, newData: UserData) {
+  // 1. データを更新（例: データベースの更新）
+  await db.user.update(id, newData);
+  // 2. 関連キャッシュを再検証（「user」タグのデータを stale 状態にする）
+  revalidateTag('user', 'max');
 }
+
 ```
 個人的には`revalidateTag`を使用するなら後で記載する`updateTag`を使用するかなと思います。`revalidateTag`がデータをすぐに最新化する必要がない時に使用するとは書きましたが、最新の方がいいんじゃん？と思っています。
 
@@ -98,3 +45,30 @@ updateTagは Next.js 16で新たに導入された、**サーバーアクショ�
 くどいですが**Server Action内でのみ**利用可能です。Route Handler（APIルート）やクライアント側から呼ぶことはできず、もしServer Action外で呼び出すとエラーになります。Server Action内で動作させることで、Next.jsはキャッシュをただ無効にするだけでなく必要な再フェッチも即座に実行し、画面を更新します。
 ### 使い方
 指定したタグのキャッシュエントリを即時に期限切れ（expired）状態にします。これにより次回そのタグ付きデータを要求する際は必ず新しいデータの取得が行われ、古いキャッシュは使用されません。言い換えれば、updateTag実行後の最初の再レンダリングは必ずブロッキングして最新データを取りに行き、ユーザーには更新済みの内容が表示されます。そのためユーザーのフォーム送信や設定変更など即時反映が求められるUI操作に向いています。
+### SSRでの使用例
+下記はブログ記事の投稿作成アクション内で、記事一覧と詳細ページ用のキャッシュを即時無効化してからリダイレクトする例です。`updateTag('posts')`により記事一覧（タグ:"posts"）のキャッシュを失効させ、`updateTag(\post-${post.id})`で新規投稿個別ページ（タグ例:"post-123"）のキャッシュも失効させています。こうすることで、リダイレクト後に遷移したページや戻った一覧ページでユーザーが古いキャッシュを見ることなく最新投稿が表示されます。
+```ts
+'use server';
+
+import { updateTag } from 'next/cache';
+import { redirect } from 'next/navigation';
+
+export async function createPost(formData: FormData) {
+  // 1. 新規ポストをデータベースに作成
+  const post = await db.post.create({
+    data: { 
+      title: formData.get('title'), 
+      content: formData.get('content')
+    }
+  });
+  // 2. 関連するキャッシュを即時無効化（次回アクセス時に最新データを取得）
+  updateTag('posts');                 // 投稿一覧ページ用のタグを無効化
+  updateTag(`post-${post.id}`);       // 個別投稿ページ用のタグを無効化
+  // 3. 別ページに遷移（遷移先で最新の投稿データが表示される）
+  redirect(`/posts/${post.id}`);
+}
+```
+:::message
+APIルートなどServer Action以外の場面で即時にキャッシュを無効化したい場合には使用できません（その場合は代替としてrevalidateTagの即時無効化を利用します）。
+`revalidateTag(tag, { expire: 0 })`こういうのを使用します。
+:::
