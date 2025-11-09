@@ -2,7 +2,7 @@
 title: "Next.16で改善されたキャッシュAPIを調査したんじゃ"
 emoji: "✏️"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["Next.js","cash"]
+topics: ["Next.js","cash","SSR"]
 published: false
 # published_at: 2025-11-01 21:30
 publication_name: "genai"
@@ -70,12 +70,36 @@ export async function createPost(formData: FormData) {
 ```
 :::message
 APIルートなどServer Action以外の場面で即時にキャッシュを無効化したい場合には使用できません（その場合は代替としてrevalidateTagの即時無効化を利用します）。
-`revalidateTag(tag, { expire: 0 })`こういうのを使用します。
+revalidateTag(tag, { expire: 0 })こういうのを使用します。
 :::
 # ページの再描画（クライアントルーターのリフレッシュ）
 refresh は**現在のページ（ルート）を再度読み込み（再レンダリング）するため**の関数です。Server Actionから呼び出すことで、クライアント側のNext.jsルーターに対してそのページのデータを再取得・再描画するよう指示します。言い換えると、ブラウザの手動リロードを行わずにNext.jsアプリ内でプログラム的にページ更新（router.refresh 相当）を行う手段です。
 ### 使用できる場所
 こちらも Server Action内 でのみ使用可能で、それ以外（Route Handlerやクライアントコンポーネント等）で呼ぶとエラーになります。
 ### 使い方
-
+`refresh()`を呼ぶと、Next.jsは現在表示中のページ全体に対して再度データフェッチと再レンダリングを実行します。例えばそのページがServer ComponentによってSSRで描画されていれば、そのServer Componentのデータ取得処理が再実行され、最新の内容で画面が更新されます。クライアント側の状態（例えばフォームの入力値やUIの一時状態）は維持されたまま、サーバー由来のデータだけが更新されるようになっています。これはNext.jsの`router.refresh()`と同様、Reactのクライアント状態は再マウントせずサーバーコンポーネント部分のみを再読み込みする仕組みによります。
+例えば通知の「既読」をデータベースで更新した後、ヘッダーに表示している未読通知数を最新化するために`refresh()`を呼ぶケースが挙げられます。他にも、フォーム送信後も同じページに留まりつつ内容だけ更新したい場合など、ページ全体をリロードせず動的部分だけ更新したい状況で有用です。
 ### 使用例
+下記は通知を既読にするServer Action内でrefresh()を利用する例です。データ更新後にrefresh()を呼ぶことで、ユーザーの現在閲覧中ページ（例としてヘッダーの通知数を含むレイアウト）のデータが再取得され、画面上の通知数表示が最新状態に更新されます。
+```ts
+'use server';
+
+import { refresh } from 'next/cache';
+
+export async function markNotificationAsRead(notificationId: string) {
+  // 1. 通知をデータベース上で既読に更新
+  await db.notifications.markAsRead(notificationId);
+  // 2. ページを再描画（通知件数など表示中のデータを最新化）
+  refresh();
+}
+```
+:::message
+refreshは特定のタグに限定せずページ全体を再取得するため、複数のキャッシュデータにまたがる更新や、タグ管理していないデータの更新反映に便利です。一方で必要以上の再フェッチが発生する場合もあるため、更新範囲が限定できる場合はrevalidateTag/updateTagで部分的なデータ更新を行う方が効率的です。
+:::
+
+# まとめ
+サーバーアクション内でユーザー操作により即座にUIを更新したいなら updateTag（特定データだけ更新）か refresh（ページ全体を再読み込み）を使用します。
+
+外部からのリクエストや非アクションのコンテキストでは updateTagは使えないため、代わりに revalidateTag を使用します。特にWebhook経由で即時更新したい場合は revalidateTag(tag, { expire: 0 }) のように即時失効させることも可能です。
+
+遅延許容の範囲や更新したいデータの粒度に応じて、revalidateTag (遅延更新・部分更新) と updateTag (即時更新・部分更新) を使い分けます。タグ管理が難しい場合や画面全体を再取得したい場合は refresh でリフレッシュする、といった具合に使い分けると良いでしょう。
