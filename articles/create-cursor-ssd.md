@@ -18,3 +18,30 @@ https://github.com/gotalab/cc-sdd/tree/main
 でももう少し欲しいものがある。要件を決めた時に、テーブル定義やER図、とかも欲しいな〜コードを作成したらテスト作成して欲しいな〜
 そうだ、好きなようにアップデートしたら良いんだと思いつきました。現状はまだ単体テストを書かせるルールは組み込んでいませんがそれはv2に取っておきます（言いたいだけ）ということで、CursorがVScodeをフォークしたように、私もcc-sddをフォークして、cursor-ssd-packageを作成しました〜👏👏
 本日はその中身と、追加したコマンドやテーブル定義のレベル感をお伝えできればと思いますので、お付き合いください！
+
+# cursor-ssd-package
+https://github.com/omegamaster86/cursor-sdd-package
+いよ！初のOSS活動であるcursor-ssd-packageです！（名前が微妙なので、良いネーミングセンスある方、改名案募集しています）
+まずは`npx cursor-sdd@latest`でインストールしてください。
+現在のところ下記のコマンドを使用できます
+| コマンド | 説明 |
+|---------|------|
+| `/init` | プロジェクト仕様の初期化 |
+| `/requirements` | 要件定義書の生成 |
+| `/requirements-import` | 既存要件のインポート |
+| `/design` | 技術設計書の作成 |
+| `/check-design` | 設計書の検証 |
+| `/tasks` | タスクの生成 |
+| `/impl` | 実装の開始 |
+| `/status` | 進捗確認 |
+| `/difference-check` | 差分チェック |
+
+実行の順番はこんな感じです
+```:
+/init → /requirements → /design → /tasks → /impl
+                ↑                    ↓
+            /status ←←←←←←←←←←←←←←←
+```
+:::message
+ここで覚えなくても、コマンド実行後にチャットで次に実行するコマンドを教えてくれるので、大丈夫です！
+:::
