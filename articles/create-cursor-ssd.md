@@ -90,7 +90,7 @@ https://github.com/omegamaster86/cursor-sdd-package
 ![](/images/create-cursor-ssd/1.png)
 実行後のチャット欄
 ![](/images/create-cursor-ssd/2.png)
-spec.jsonは一部抜粋ですが下記のように記載されており、今どんな段階なんだっけ？が一目でわかるようになっています。後ほど出てきますが、`-y`をつけると承認済みとなり
+spec.jsonは一部抜粋ですが下記のように記載されており、今どんな段階なんだっけ？が一目でわかるようになっています。後ほど出てきますが、`-y`をつけると承認済みとなります。なくてもコマンドを入力するだけでも大丈夫です。
 ```:spec.json
   "project_summary": "問題演習用の管理画面",
   "created_at": "2024/12/23",
@@ -202,7 +202,7 @@ spec.jsonは一部抜粋ですが下記のように記載されており、今�
 ::::
 変更者項目が更新されていませんね…伸び代です。
 チームで使用するには必須の項目なので、今後修正していきましょう。
-良い感じの追加要件がきたので、それを追加していきましょう。
+なんか良い感じの追加要件がきたので、それを追加していきましょう。
 ![](/images/create-cursor-ssd/3.png)
 ::::details requirements.md（追加要件実装後）
 ```
@@ -288,4 +288,996 @@ spec.jsonは一部抜粋ですが下記のように記載されており、今�
 | 2024/12/23 | v1.2 | - | カテゴリ・難易度・検索フィルタ要件を追加 |
 
 ```
+::::
+さて良い感じにできたので、`/design -y`（-y はオプショナル)で次にいきましょう
+実際に作成されたテーブル定義や設計を確認していきましょう
+
+table-definition.mdと似たようなこと書いているんだから一緒でも良いのではと思いますが、下記のように対象者を分けているので、一応分けています。
+ここは是非みなさんの意見を聞いて見たいです！
+| 観点 | data-model.md | table-definition.md |
+|------|---------------|---------------------|
+| 抽象度 | 概念レベル（ドメインモデル） | 物理レベル（DB実装） |
+| 対象者 | PO/設計者/開発者 | 開発者/DBA |
+| 変更頻度 | 要件変更時 | DB設計変更時 |
+
+
+::::details data-model.md
+# データモデル / ERD（demo）
+
+**目的**: 実装/レビュー/運用が同じ参照を見られるように、ドメイン境界とテーブル関係を Mermaid で固定する。
+**作成/更新タイミング**: `/design` の前半（MVPの主要エンティティが見えたら）。
+
+---
+
+## ER 図
+
+```mermaid
+erDiagram
+  %% 問題管理ドメイン
+  categories ||--o{ questions : has
+  questions ||--o{ question_options : has
+
+  %% ユーザー管理ドメイン
+  users ||--o{ answers : submits
+
+  %% 問題と回答の関係
+  questions ||--o{ answers : receives
+
+  %% カテゴリマスタ
+  categories {
+    bigint id PK
+    varchar name UK
+    text description
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  %% 問題マスタ
+  questions {
+    bigint id PK
+    bigint category_id FK
+    varchar title
+    text content
+    varchar difficulty "easy/medium/hard"
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  %% 問題選択肢（複数選択問題用）
+  question_options {
+    bigint id PK
+    bigint question_id FK
+    text content
+    boolean is_correct
+    int display_order
+  }
+
+  %% ユーザー（学習者）
+  users {
+    bigint id PK
+    varchar name
+    varchar email UK
+    timestamptz created_at
+    timestamptz updated_at
+  }
+
+  %% 回答履歴（将来拡張用）
+  answers {
+    bigint id PK
+    bigint user_id FK
+    bigint question_id FK
+    bigint selected_option_id FK
+    boolean is_correct
+    timestamptz answered_at
+  }
+```
+
+---
+
+## テーブル間の関係性
+
+### 外部キー制約一覧
+
+| FK 制約名 | 参照元テーブル | 参照元カラム | 参照先テーブル | 参照先カラム | ON DELETE | ON UPDATE | 説明 |
+| -------- | -------------- | ------------ | -------------- | ------------ | -------- | -------- | ---- |
+| fk_questions_category | questions | category_id | categories | id | RESTRICT | CASCADE | カテゴリ削除を制限 |
+| fk_question_options_question | question_options | question_id | questions | id | CASCADE | CASCADE | 問題削除時に選択肢も削除 |
+| fk_answers_user | answers | user_id | users | id | CASCADE | CASCADE | ユーザー削除時に回答も削除 |
+| fk_answers_question | answers | question_id | questions | id | CASCADE | CASCADE | 問題削除時に回答も削除 |
+| fk_answers_option | answers | selected_option_id | question_options | id | SET NULL | CASCADE | 選択肢削除時はNULL |
+
+### テーブル間の依存関係
+
+- **categories → questions**: 1対多。カテゴリに問題が紐づいている場合、カテゴリ削除不可（要件5.6）
+- **questions → question_options**: 1対多。問題削除時は選択肢もカスケード削除
+- **users → answers**: 1対多。ユーザー削除時は回答履歴もカスケード削除
+- **questions → answers**: 1対多。問題削除時は回答履歴もカスケード削除
+
+### データ整合性ルール
+
+1. **categories**: 問題が存在する限り削除不可（RESTRICT）
+2. **questions**: カテゴリ必須、難易度は enum 制約
+3. **users**: email はユニーク制約
+4. **difficulty**: 'easy', 'medium', 'hard' のいずれか
+
+---
+
+## 参照
+- **テーブル定義書**: `table-definition.md`
+- **機能一覧**: `feature-list.md`
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更者 | 変更内容 |
+| ---- | ---------- | ------ | -------- |
+| 2024-12-23 | v1.0 | - | 初版作成 |
+
+::::
+
+画面機能が無駄に多く、登録、編集は1画面画面で良い気がするので、実装時にどうなるか確認して見ましょうかね〜
+
+::::details feature-list.md
+# 機能一覧（cursor-sdd-demo）
+
+**目的**: プロダクトのスコープ（MVP/Phase）と、UI/API/バッチの一覧を"合意の一次ソース"として固定する。
+**作成/更新タイミング**: `/requirements` の直後（要件ドラフトが出たらまず作る）。
+
+---
+
+## 画面機能
+
+| 機能 ID | 画面名 | 説明 | 優先度 | Phase | 記載者 |
+| ------- | ------ | ---- | ------ | ----- | ------ |
+| UI-001  | 問題一覧 | 登録済み問題を一覧表示。検索・フィルタ・ページネーションを提供。 | High | MVP | |
+| UI-002  | 問題作成 | 新規問題を作成するフォーム画面。カテゴリ・難易度を選択可能。 | High | MVP | |
+| UI-003  | 問題編集 | 既存問題を編集するフォーム画面。カテゴリ・難易度を変更可能。 | High | MVP | |
+| UI-004  | ユーザー一覧 | 登録済みユーザー（学習者）を一覧表示。検索・ページネーションを提供。 | High | MVP | |
+| UI-005  | ユーザー登録 | 新規ユーザーを登録するフォーム画面。 | High | MVP | |
+| UI-006  | ユーザー編集 | 既存ユーザーを編集するフォーム画面。 | High | MVP | |
+| UI-007  | カテゴリ一覧 | 問題カテゴリを一覧表示。作成・編集・削除を提供。 | High | MVP | |
+| UI-008  | カテゴリ作成・編集 | カテゴリを作成・編集するフォーム（モーダル or インライン）。 | High | MVP | |
+
+---
+
+## API 機能
+
+| 機能 ID | API 名 | エンドポイント | メソッド | 説明 | レベル | 実装方法 | 優先度 | Phase | 記載者 |
+| ------- | ------ | -------------- | -------- | ---- | ------ | -------- | ------ | ----- | ------ |
+| API-001 | 問題一覧取得 | /api/questions | GET | 問題一覧を取得する。検索・フィルタ・ページネーション対応。 | B | Server API | High | MVP | |
+| API-002 | 問題詳細取得 | /api/questions/:id | GET | 指定IDの問題詳細を取得する。 | C | Server API | High | MVP | |
+| API-003 | 問題作成 | /api/questions | POST | 新規問題を作成する。カテゴリ・難易度を含む。 | C | Server API | High | MVP | |
+| API-004 | 問題更新 | /api/questions/:id | PUT | 指定IDの問題を更新する。 | C | Server API | High | MVP | |
+| API-005 | 問題削除 | /api/questions/:id | DELETE | 指定IDの問題を削除する。 | C | Server API | High | MVP | |
+| API-006 | ユーザー一覧取得 | /api/users | GET | ユーザー一覧を取得する。ページネーション対応。 | C | Server API | High | MVP | |
+| API-007 | ユーザー詳細取得 | /api/users/:id | GET | 指定IDのユーザー詳細を取得する。 | C | Server API | High | MVP | |
+| API-008 | ユーザー登録 | /api/users | POST | 新規ユーザーを登録する。 | C | Server API | High | MVP | |
+| API-009 | ユーザー更新 | /api/users/:id | PUT | 指定IDのユーザーを更新する。 | C | Server API | High | MVP | |
+| API-010 | ユーザー削除 | /api/users/:id | DELETE | 指定IDのユーザーを削除する。 | C | Server API | High | MVP | |
+| API-011 | カテゴリ一覧取得 | /api/categories | GET | カテゴリ一覧を取得する。 | C | Server API | High | MVP | |
+| API-012 | カテゴリ作成 | /api/categories | POST | 新規カテゴリを作成する。 | C | Server API | High | MVP | |
+| API-013 | カテゴリ更新 | /api/categories/:id | PUT | 指定IDのカテゴリを更新する。 | C | Server API | High | MVP | |
+| API-014 | カテゴリ削除 | /api/categories/:id | DELETE | 指定IDのカテゴリを削除する。紐づく問題があれば拒否。 | C | Server API | High | MVP | |
+
+---
+
+## バッチ機能
+
+| 機能 ID | バッチ名 | 実行タイミング | 説明 | 優先度 | Phase | 記載者 |
+| ------- | -------- | -------------- | ---- | ------ | ----- | ------ |
+| （なし） | - | - | MVP段階ではバッチ機能なし | - | - | |
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更者 | 変更内容 |
+| ---- | ---------- | ------ | -------- |
+| 2024/12/23 | v1.0 | - | 初版作成 |
+| 2024/12/23 | v1.1 | - | カテゴリ管理・検索フィルタ機能を追加 |
+
+::::
+
+これは是非見ておきたいですね〜どうしても外部キーに関してはER図が欲しくなってくるので、拡張機能でER図を確認することをお勧めします。これだけでは把握しづらいので（そこを改善しろと言いたい気持ちはわかります）
+::::details table-definition.md
+# テーブル定義書（demo）
+
+**目的**: DBの"契約"を明文化し、実装・レビュー・移行でブレないようにする。
+**作成/更新タイミング**: `/design` の中盤〜終盤（ERDのエンティティが固まったら）。
+
+---
+
+## テーブル一覧
+
+| テーブル物理名 | テーブル論理名 | 概要 | 種別 |
+| -------------- | -------------- | ---- | ---- |
+| categories | カテゴリ | 問題のカテゴリマスタ | マスタ |
+| questions | 問題 | 問題マスタ | マスタ |
+| question_options | 問題選択肢 | 問題の選択肢 | トランザクション |
+| users | ユーザー | 学習者情報 | マスタ |
+| answers | 回答履歴 | ユーザーの回答記録 | トランザクション |
+
+---
+
+## 共通カラム定義
+
+> ここはプロジェクト標準を定義して、各テーブルの繰り返しを減らす。
+
+| カラム名 | 論理名 | 型 | 制約 | デフォルト値 | 説明 |
+| ------ | ------ | -- | ---- | ---------- | ---- |
+| id | ID | bigint | PK, AUTO_INCREMENT | | |
+| created_at | 作成日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+| updated_at | 更新日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+
+---
+
+## テーブル詳細定義
+
+### カテゴリ（categories）
+
+**概要**: 問題を分類するためのカテゴリマスタ
+
+#### テーブル定義
+
+| カラム名 | 論理名 | 型 | 制約 | デフォルト値 | 説明 |
+| ------ | ------ | -- | ---- | ---------- | ---- |
+| id | ID | bigint | PK, AUTO_INCREMENT | | |
+| name | カテゴリ名 | varchar(100) | NOT NULL, UNIQUE | | |
+| description | 説明 | text | NULL | | カテゴリの説明文 |
+| created_at | 作成日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+| updated_at | 更新日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+
+**インデックス**
+
+| インデックス名 | カラム | 種別 | 備考 |
+| ------------ | ------ | ---- | ---- |
+| idx_categories_name | name | UNIQUE | カテゴリ名検索用 |
+
+---
+
+### 問題（questions）
+
+**概要**: 学習者に出題する問題マスタ
+
+#### テーブル定義
+
+| カラム名 | 論理名 | 型 | 制約 | デフォルト値 | 説明 |
+| ------ | ------ | -- | ---- | ---------- | ---- |
+| id | ID | bigint | PK, AUTO_INCREMENT | | |
+| category_id | カテゴリID | bigint | FK, NOT NULL | | categories.id |
+| title | タイトル | varchar(200) | NOT NULL | | 問題のタイトル |
+| content | 本文 | text | NOT NULL | | 問題の本文 |
+| difficulty | 難易度 | varchar(20) | NOT NULL | 'medium' | easy/medium/hard |
+| created_at | 作成日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+| updated_at | 更新日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+
+**インデックス**
+
+| インデックス名 | カラム | 種別 | 備考 |
+| ------------ | ------ | ---- | ---- |
+| idx_questions_category | category_id | INDEX | カテゴリ別検索用 |
+| idx_questions_difficulty | difficulty | INDEX | 難易度別検索用 |
+| idx_questions_title | title | INDEX | タイトル検索用 |
+
+**外部キー制約**
+
+| FK 名 | 参照元カラム | 参照先テーブル | 参照先カラム | ON DELETE | ON UPDATE |
+| ----- | ---------- | -------------- | ------------ | -------- | -------- |
+| fk_questions_category | category_id | categories | id | RESTRICT | CASCADE |
+
+---
+
+### 問題選択肢（question_options）
+
+**概要**: 問題の選択肢（複数選択問題用）
+
+#### テーブル定義
+
+| カラム名 | 論理名 | 型 | 制約 | デフォルト値 | 説明 |
+| ------ | ------ | -- | ---- | ---------- | ---- |
+| id | ID | bigint | PK, AUTO_INCREMENT | | |
+| question_id | 問題ID | bigint | FK, NOT NULL | | questions.id |
+| content | 選択肢内容 | text | NOT NULL | | |
+| is_correct | 正解フラグ | boolean | NOT NULL | false | |
+| display_order | 表示順 | int | NOT NULL | 0 | |
+
+**インデックス**
+
+| インデックス名 | カラム | 種別 | 備考 |
+| ------------ | ------ | ---- | ---- |
+| idx_options_question | question_id | INDEX | 問題別選択肢取得用 |
+
+**外部キー制約**
+
+| FK 名 | 参照元カラム | 参照先テーブル | 参照先カラム | ON DELETE | ON UPDATE |
+| ----- | ---------- | -------------- | ------------ | -------- | -------- |
+| fk_options_question | question_id | questions | id | CASCADE | CASCADE |
+
+---
+
+### ユーザー（users）
+
+**概要**: 問題を解く学習者の情報
+
+#### テーブル定義
+
+| カラム名 | 論理名 | 型 | 制約 | デフォルト値 | 説明 |
+| ------ | ------ | -- | ---- | ---------- | ---- |
+| id | ID | bigint | PK, AUTO_INCREMENT | | |
+| name | 名前 | varchar(100) | NOT NULL | | |
+| email | メールアドレス | varchar(255) | NOT NULL, UNIQUE | | |
+| created_at | 作成日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+| updated_at | 更新日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+
+**インデックス**
+
+| インデックス名 | カラム | 種別 | 備考 |
+| ------------ | ------ | ---- | ---- |
+| idx_users_email | email | UNIQUE | メールアドレス検索用 |
+| idx_users_name | name | INDEX | 名前検索用 |
+
+---
+
+### 回答履歴（answers）
+
+**概要**: ユーザーの回答履歴（将来の学習進捗機能用）
+
+#### テーブル定義
+
+| カラム名 | 論理名 | 型 | 制約 | デフォルト値 | 説明 |
+| ------ | ------ | -- | ---- | ---------- | ---- |
+| id | ID | bigint | PK, AUTO_INCREMENT | | |
+| user_id | ユーザーID | bigint | FK, NOT NULL | | users.id |
+| question_id | 問題ID | bigint | FK, NOT NULL | | questions.id |
+| selected_option_id | 選択した選択肢ID | bigint | FK, NULL | | question_options.id |
+| is_correct | 正解フラグ | boolean | NOT NULL | | |
+| answered_at | 回答日時 | timestamptz | NOT NULL | CURRENT_TIMESTAMP | |
+
+**インデックス**
+
+| インデックス名 | カラム | 種別 | 備考 |
+| ------------ | ------ | ---- | ---- |
+| idx_answers_user | user_id | INDEX | ユーザー別回答取得用 |
+| idx_answers_question | question_id | INDEX | 問題別回答取得用 |
+| idx_answers_user_question | user_id, question_id | INDEX | ユーザー×問題の回答取得用 |
+
+**外部キー制約**
+
+| FK 名 | 参照元カラム | 参照先テーブル | 参照先カラム | ON DELETE | ON UPDATE |
+| ----- | ---------- | -------------- | ------------ | -------- | -------- |
+| fk_answers_user | user_id | users | id | CASCADE | CASCADE |
+| fk_answers_question | question_id | questions | id | CASCADE | CASCADE |
+| fk_answers_option | selected_option_id | question_options | id | SET NULL | CASCADE |
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更者 | 変更内容 |
+| ---- | ---------- | ------ | -------- |
+| 2024-12-23 | v1.0 | - | 初版作成 |
+
+::::
+
+正直型定義までここでするかは迷っていますが、正直サッと確認して、違和感がなければ次に進んでも良いと思います
+::::details design.md
+# 設計ドキュメント
+
+---
+**目的**: 実装者が異なる場合でも一貫した実装を保証するために、十分な詳細を提供し、解釈のズレを防ぐ。
+---
+
+## 概要
+
+**目的**: 本システムは管理者に問題演習コンテンツの効率的な管理機能を提供する。問題の作成・編集・削除、カテゴリ・難易度による分類、学習者アカウントの管理を一元化することで、教育コンテンツの運用効率を向上させる。
+
+**ユーザー**: 管理者が問題演習システムの管理画面でこれを利用する。
+
+**成果物**:
+- `.cursor/cursor-sdd-demo/artifacts/feature-list.md`
+- `.cursor/cursor-sdd-demo/artifacts/data-model.md`
+- `.cursor/cursor-sdd-demo/artifacts/table-definition.md`
+
+### ゴール
+- 問題のCRUD操作を直感的に行える管理画面
+- カテゴリ・難易度による問題の体系的な分類
+- 学習者アカウントの効率的な管理
+- キーワード検索・フィルタによる問題の素早い検索
+
+### 非ゴール
+- 学習者向けの問題解答画面（本スコープは管理画面のみ）
+- 学習進捗の詳細分析・レポート機能
+- 管理者認証・権限管理（将来拡張）
+- 問題のインポート/エクスポート機能
+
+## アーキテクチャ
+
+詳細な調査ノートは`research.md`を参照。
+
+### アーキテクチャパターン＆境界マップ
+
+```mermaid
+graph TB
+    subgraph Client
+        Browser[Browser]
+    end
+
+    subgraph NextJS[Next.js App Router]
+        Pages[Pages/Server Components]
+        Actions[Server Actions]
+        API[Route Handlers]
+    end
+
+    subgraph DataLayer[Data Layer]
+        Prisma[Prisma ORM]
+        DB[(SQLite/PostgreSQL)]
+    end
+
+    Browser --> Pages
+    Pages --> Actions
+    Pages --> API
+    Actions --> Prisma
+    API --> Prisma
+    Prisma --> DB
+```
+
+**アーキテクチャ統合**:
+- 選択パターン: Server Components + Server Actions（Next.js App Router標準）
+- ドメイン/機能境界: 問題管理・ユーザー管理・カテゴリ管理の3ドメインに分離
+- 維持する既存パターン: App Router、Tailwind CSS、TypeScript strict mode
+- 新コンポーネントの理由: CRUD画面とServer Actionsが必要
+
+### 技術スタック
+
+| レイヤー | 選択 / バージョン | 機能での役割 | 備考 |
+|---------|-----------------|-------------|------|
+| フロントエンド | Next.js 16.1.1, React 19.2.3 | UI描画、ルーティング | 既存 |
+| スタイリング | Tailwind CSS 4 | UIスタイリング | 既存 |
+| バックエンド | Next.js Server Actions | データ操作API | 既存機能活用 |
+| ORM | Prisma (追加推奨) | 型安全なDB操作 | 新規追加 |
+| データベース | SQLite (開発) / PostgreSQL (本番) | データ永続化 | 新規追加 |
+| リンター | Biome 2.2.0 | コード品質 | 既存 |
+
+## システムフロー
+
+### 問題作成フロー
+
+```mermaid
+sequenceDiagram
+    actor Admin as 管理者
+    participant UI as 問題作成画面
+    participant Action as Server Action
+    participant DB as Database
+
+    Admin->>UI: 問題作成ボタンクリック
+    UI->>UI: フォーム表示
+    Admin->>UI: フォーム入力・送信
+    UI->>Action: createQuestion(data)
+    Action->>Action: バリデーション
+    alt バリデーションエラー
+        Action-->>UI: エラーレスポンス
+        UI-->>Admin: エラー表示
+    else 成功
+        Action->>DB: INSERT question
+        DB-->>Action: 作成結果
+        Action-->>UI: 成功レスポンス
+        UI-->>Admin: 一覧へリダイレクト
+    end
+```
+
+### 問題検索・フィルタフロー
+
+```mermaid
+sequenceDiagram
+    actor Admin as 管理者
+    participant UI as 問題一覧画面
+    participant Action as Server Action
+    participant DB as Database
+
+    Admin->>UI: 検索条件入力/フィルタ選択
+    UI->>Action: getQuestions(filters)
+    Action->>DB: SELECT with WHERE
+    DB-->>Action: 問題リスト
+    Action-->>UI: 問題データ
+    UI-->>Admin: フィルタ結果表示
+```
+
+## 要件トレーサビリティ
+
+| 要件 | 概要 | コンポーネント | インターフェース | フロー |
+|------|------|--------------|----------------|--------|
+| 1.1-1.9 | 問題管理CRUD | QuestionForm, QuestionList | questionActions | 問題作成フロー |
+| 2.1-2.8 | ユーザー管理CRUD | UserForm, UserList | userActions | - |
+| 3.1-3.3 | 問題一覧表示 | QuestionList | getQuestions | - |
+| 4.1-4.3 | ユーザー一覧表示 | UserList | getUsers | - |
+| 5.1-5.6 | カテゴリ管理 | CategoryForm, CategoryList | categoryActions | - |
+| 6.1-6.5 | 問題検索・フィルタ | QuestionFilter | getQuestions | 検索フィルタフロー |
+
+## コンポーネントとインターフェース
+
+| コンポーネント | ドメイン/レイヤー | 意図 | 要件カバレッジ | 主要な依存関係 | 契約 |
+|--------------|-----------------|------|--------------|---------------|------|
+| QuestionList | UI/問題管理 | 問題一覧表示・検索・フィルタ | 1.3, 3.1-3.3, 6.1-6.5 | getQuestions (P0) | State |
+| QuestionForm | UI/問題管理 | 問題作成・編集フォーム | 1.1-1.2, 1.4, 1.7-1.9 | categoryActions (P1) | State |
+| UserList | UI/ユーザー管理 | ユーザー一覧表示 | 2.3, 4.1-4.3 | getUsers (P0) | State |
+| UserForm | UI/ユーザー管理 | ユーザー登録・編集フォーム | 2.1-2.2, 2.4, 2.7-2.8 | - | State |
+| CategoryList | UI/カテゴリ管理 | カテゴリ一覧表示・管理 | 5.1-5.6 | categoryActions (P0) | State |
+| questionActions | Server/問題管理 | 問題CRUDロジック | 1.1-1.9 | Prisma (P0) | Service |
+| userActions | Server/ユーザー管理 | ユーザーCRUDロジック | 2.1-2.8 | Prisma (P0) | Service |
+| categoryActions | Server/カテゴリ管理 | カテゴリCRUDロジック | 5.1-5.6 | Prisma (P0) | Service |
+
+### Server / 問題管理
+
+#### questionActions
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | 問題のCRUD操作を提供 |
+| 要件 | 1.1-1.9, 3.1-3.3, 6.1-6.5 |
+
+**責任と制約**
+- 問題の作成・取得・更新・削除
+- カテゴリ・難易度によるフィルタリング
+- キーワード検索（タイトル・本文）
+
+**依存関係**
+- アウトバウンド: Prisma Client — DB操作 (P0)
+
+**契約**: Service [x]
+
+##### サービスインターフェース
+
+```typescript
+// 難易度の型定義
+type Difficulty = 'easy' | 'medium' | 'hard';
+
+// 問題フィルタ条件
+interface QuestionFilter {
+  keyword?: string;
+  categoryId?: number;
+  difficulty?: Difficulty;
+  page?: number;
+  pageSize?: number;
+}
+
+// 問題作成入力
+interface CreateQuestionInput {
+  title: string;
+  content: string;
+  categoryId: number;
+  difficulty: Difficulty;
+  options?: Array<{
+    content: string;
+    isCorrect: boolean;
+    displayOrder: number;
+  }>;
+}
+
+// 問題更新入力
+interface UpdateQuestionInput {
+  title?: string;
+  content?: string;
+  categoryId?: number;
+  difficulty?: Difficulty;
+}
+
+// Server Actions
+async function getQuestions(filter: QuestionFilter): Promise<{
+  questions: Question[];
+  total: number;
+  page: number;
+  pageSize: number;
+}>;
+
+async function getQuestion(id: number): Promise<Question | null>;
+
+async function createQuestion(input: CreateQuestionInput): Promise<{
+  success: boolean;
+  question?: Question;
+  errors?: Record<string, string[]>;
+}>;
+
+async function updateQuestion(id: number, input: UpdateQuestionInput): Promise<{
+  success: boolean;
+  question?: Question;
+  errors?: Record<string, string[]>;
+}>;
+
+async function deleteQuestion(id: number): Promise<{
+  success: boolean;
+  error?: string;
+}>;
+```
+
+- 事前条件: 入力バリデーション済み
+- 事後条件: DB状態が更新される
+- 不変条件: カテゴリIDは存在するカテゴリを参照
+
+---
+
+### Server / ユーザー管理
+
+#### userActions
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | ユーザー（学習者）のCRUD操作を提供 |
+| 要件 | 2.1-2.8, 4.1-4.3 |
+
+**責任と制約**
+- ユーザーの登録・取得・更新・削除
+- メールアドレスの重複チェック
+
+**依存関係**
+- アウトバウンド: Prisma Client — DB操作 (P0)
+
+**契約**: Service [x]
+
+##### サービスインターフェース
+
+```typescript
+// ユーザーフィルタ条件
+interface UserFilter {
+  keyword?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// ユーザー作成入力
+interface CreateUserInput {
+  name: string;
+  email: string;
+}
+
+// ユーザー更新入力
+interface UpdateUserInput {
+  name?: string;
+  email?: string;
+}
+
+// Server Actions
+async function getUsers(filter: UserFilter): Promise<{
+  users: User[];
+  total: number;
+  page: number;
+  pageSize: number;
+}>;
+
+async function getUser(id: number): Promise<User | null>;
+
+async function createUser(input: CreateUserInput): Promise<{
+  success: boolean;
+  user?: User;
+  errors?: Record<string, string[]>;
+}>;
+
+async function updateUser(id: number, input: UpdateUserInput): Promise<{
+  success: boolean;
+  user?: User;
+  errors?: Record<string, string[]>;
+}>;
+
+async function deleteUser(id: number): Promise<{
+  success: boolean;
+  error?: string;
+}>;
+```
+
+- 事前条件: 入力バリデーション済み
+- 事後条件: DB状態が更新される
+- 不変条件: メールアドレスはユニーク
+
+---
+
+### Server / カテゴリ管理
+
+#### categoryActions
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | カテゴリのCRUD操作を提供 |
+| 要件 | 5.1-5.6 |
+
+**責任と制約**
+- カテゴリの作成・取得・更新・削除
+- 問題が紐づくカテゴリの削除を禁止
+
+**依存関係**
+- アウトバウンド: Prisma Client — DB操作 (P0)
+
+**契約**: Service [x]
+
+##### サービスインターフェース
+
+```typescript
+// カテゴリ作成入力
+interface CreateCategoryInput {
+  name: string;
+  description?: string;
+}
+
+// カテゴリ更新入力
+interface UpdateCategoryInput {
+  name?: string;
+  description?: string;
+}
+
+// Server Actions
+async function getCategories(): Promise<Category[]>;
+
+async function getCategory(id: number): Promise<Category | null>;
+
+async function createCategory(input: CreateCategoryInput): Promise<{
+  success: boolean;
+  category?: Category;
+  errors?: Record<string, string[]>;
+}>;
+
+async function updateCategory(id: number, input: UpdateCategoryInput): Promise<{
+  success: boolean;
+  category?: Category;
+  errors?: Record<string, string[]>;
+}>;
+
+async function deleteCategory(id: number): Promise<{
+  success: boolean;
+  error?: string;
+}>;
+```
+
+- 事前条件: 入力バリデーション済み
+- 事後条件: DB状態が更新される
+- 不変条件: 問題が存在するカテゴリは削除不可（要件5.6）
+
+---
+
+### UI / 問題管理
+
+#### QuestionList
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | 問題一覧の表示・検索・フィルタ・ページネーション |
+| 要件 | 1.3, 3.1-3.3, 6.1-6.5 |
+
+**実装ノート**
+- Server Componentとして実装
+- 検索・フィルタはURL検索パラメータで状態管理
+- ページネーションはサーバーサイドで処理
+
+#### QuestionForm
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | 問題の作成・編集フォーム |
+| 要件 | 1.1-1.2, 1.4, 1.7-1.9 |
+
+**実装ノート**
+- Client Component（`'use client'`）
+- カテゴリ・難易度はセレクトボックス
+- バリデーションエラーはフィールド単位で表示
+
+---
+
+### UI / ユーザー管理
+
+#### UserList
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | ユーザー一覧の表示・ページネーション |
+| 要件 | 2.3, 4.1-4.3 |
+
+#### UserForm
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | ユーザーの登録・編集フォーム |
+| 要件 | 2.1-2.2, 2.4, 2.7-2.8 |
+
+**実装ノート**
+- メールアドレス重複エラーはサーバーサイドで検証
+
+---
+
+### UI / カテゴリ管理
+
+#### CategoryList
+
+| フィールド | 詳細 |
+|----------|------|
+| 意図 | カテゴリ一覧の表示・インライン編集・削除 |
+| 要件 | 5.1-5.6 |
+
+**実装ノート**
+- 削除時は確認ダイアログを表示
+- 問題が紐づくカテゴリは削除ボタン無効化またはエラー表示
+
+## データモデル
+
+> 詳細は `data-model.md` / `table-definition.md` を参照。
+
+### ドメインモデル
+
+```mermaid
+erDiagram
+    Category ||--o{ Question : contains
+    Question ||--o{ QuestionOption : has
+    User ||--o{ Answer : submits
+    Question ||--o{ Answer : receives
+
+    Category {
+        id bigint PK
+        name string UK
+        description string
+    }
+
+    Question {
+        id bigint PK
+        categoryId bigint FK
+        title string
+        content string
+        difficulty enum
+    }
+
+    QuestionOption {
+        id bigint PK
+        questionId bigint FK
+        content string
+        isCorrect boolean
+        displayOrder int
+    }
+
+    User {
+        id bigint PK
+        name string
+        email string UK
+    }
+
+    Answer {
+        id bigint PK
+        userId bigint FK
+        questionId bigint FK
+        selectedOptionId bigint FK
+        isCorrect boolean
+    }
+```
+
+### ビジネスルール & 不変条件
+- カテゴリ名はユニーク
+- ユーザーのメールアドレスはユニーク
+- 難易度は 'easy' | 'medium' | 'hard' のいずれか
+- 問題が存在するカテゴリは削除不可
+
+## エラーハンドリング
+
+### エラー戦略
+- バリデーションエラー: フィールド単位でエラーメッセージを返却
+- DB制約違反: ユーザーフレンドリーなメッセージに変換
+- 予期せぬエラー: エラーログ出力 + 汎用エラーメッセージ表示
+
+### エラーカテゴリとレスポンス
+- **ユーザーエラー (4xx)**: バリデーションエラー → フィールドレベル検証
+- **ビジネスロジックエラー (422)**: カテゴリ削除不可 → 条件説明
+- **システムエラー (5xx)**: DB接続エラー → 汎用エラーメッセージ
+
+## テスト戦略
+
+### ユニットテスト
+- questionActions: 作成・更新・削除・検索ロジック
+- userActions: 作成・更新・削除・重複チェック
+- categoryActions: 作成・更新・削除制約チェック
+
+### 統合テスト
+- 問題作成→一覧表示フロー
+- カテゴリ削除制約の検証
+- ユーザーメールアドレス重複検証
+
+### E2E/UIテスト
+- 問題CRUD操作フロー
+- 検索・フィルタ機能
+- ユーザー登録・編集フロー
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更者 | 変更内容 |
+| ---- | ---------- | ------ | -------- |
+| 2024-12-23 | v1.0 | - | 初版作成 |
+
+::::
+
+データ永続化の検討ではprismaを結構押してくるので、/designの際に使用したい技術を入れるか、「既存技術スタックの確認」項目があるのであらかじめインストールしておくと良いですね。
+「設計決定」でどうして採用したのか記載してあるのも良いですね。
+::::details research.md
+# 調査 & 設計決定テンプレート
+
+---
+**目的**: 技術設計に情報を提供する発見結果、アーキテクチャ調査、および根拠を記録する。
+---
+
+## 概要
+- **機能**: cursor-sdd-demo（問題演習用管理画面）
+- **発見スコープ**: シンプルな追加（CRUD管理画面）
+- **主な発見事項**:
+  - Next.js 16.1.1 + React 19.2.3 + Tailwind CSS 4 の既存スタックで十分
+  - 追加パッケージ不要（既存構成で要件を満たせる）
+  - Server Components + Server Actions パターンを活用
+
+## 調査ログ
+
+### 既存技術スタックの確認
+- **コンテキスト**: package.json から現在の依存関係を把握
+- **参照したソース**: `/package.json`
+- **発見事項**:
+  - Next.js 16.1.1（App Router）
+  - React 19.2.3
+  - Tailwind CSS 4
+  - Biome 2.2.0（リンター/フォーマッター）
+  - TypeScript 5系
+- **影響**: 新規パッケージの追加不要。フォーム処理も Server Actions で対応可能。
+
+### データ永続化の検討
+- **コンテキスト**: 問題・ユーザー・カテゴリのCRUD操作に必要なDB選定
+- **発見事項**:
+  - MVP段階ではローカルファイルDB（SQLite）またはPostgreSQLを想定
+  - Prisma ORMの導入を推奨（型安全性、マイグレーション管理）
+- **影響**: `prisma` パッケージの追加を推奨
+
+## アーキテクチャパターン評価
+
+| オプション | 説明 | 強み | リスク / 制限 | 備考 |
+|----------|------|------|--------------|------|
+| Server Components + Server Actions | Next.js App Router標準パターン | シンプル、型安全、SSR最適化 | 複雑なリアルタイム処理には不向き | 採用 |
+| tRPC | 型安全なAPI層 | E2E型安全性 | 学習コスト、設定オーバーヘッド | 不採用（過剰） |
+| REST API + React Query | 従来型API + キャッシュ | 汎用性高 | ボイラープレート多い | 不採用 |
+
+## 設計決定
+
+### 決定: Server Actions によるデータ操作
+- **コンテキスト**: CRUD操作のAPI設計
+- **検討した代替案**:
+  1. Route Handlers（API Routes）— REST APIパターン
+  2. Server Actions — フォーム送信を直接サーバー処理
+- **選択したアプローチ**: Server Actions
+- **根拠**: 
+  - Next.js 14+ の推奨パターン
+  - フォームバリデーションとの統合が容易
+  - 型安全性が高い
+  - ボイラープレートが少ない
+- **トレードオフ**: API再利用性は低下（外部クライアントからの呼び出し不可）
+- **フォローアップ**: 将来的にモバイルアプリ等が必要になったら Route Handlers を追加
+
+### 決定: Prisma ORM の採用
+- **コンテキスト**: データベースアクセス層の選定
+- **検討した代替案**:
+  1. Prisma ORM — 型安全、マイグレーション管理
+  2. Drizzle ORM — 軽量、SQL志向
+  3. 直接SQLクエリ — 最小限の抽象化
+- **選択したアプローチ**: Prisma ORM
+- **根拠**:
+  - TypeScript統合が優秀
+  - スキーマ駆動開発との相性良好
+  - マイグレーション管理が容易
+- **トレードオフ**: バンドルサイズ増加、初期セットアップが必要
+
+## リスク & 軽減策
+- パフォーマンス（大量データ） — ページネーション必須、インデックス設計
+- データ整合性（カテゴリ削除時） — 外部キー制約で保護
+
+## 参考文献
+- [Next.js App Router Docs](https://nextjs.org/docs) — Server Components, Server Actions
+- [Prisma Docs](https://www.prisma.io/docs) — スキーマ定義、クエリ
+- [Tailwind CSS v4 Docs](https://tailwindcss.com/docs) — スタイリング
+
+---
+
+## 変更履歴
+
+| 日付 | バージョン | 変更者 | 変更内容 |
+| ---- | ---------- | ------ | -------- |
+| 2024-12-23 | v1.0 | - | 初版作成 |
+
 ::::
