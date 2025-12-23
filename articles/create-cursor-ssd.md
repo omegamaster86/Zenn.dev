@@ -76,3 +76,5 @@ https://github.com/omegamaster86/cursor-sdd-package
 :::
 
 早速どんなふうに動作するのか見ていきましょう〜
+
+# 動作画面
