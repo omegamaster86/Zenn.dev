@@ -74,3 +74,5 @@ https://github.com/omegamaster86/cursor-sdd-package
 :::message
 ここで覚えなくても、コマンド実行後にチャットで次に実行するコマンドを教えてくれるので、大丈夫です！
 :::
+
+早速どんなふうに動作するのか見ていきましょう〜
