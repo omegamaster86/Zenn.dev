@@ -690,9 +690,9 @@ erDiagram
 **ユーザー**: 管理者が問題演習システムの管理画面でこれを利用する。
 
 **成果物**:
-- `.cursor/cursor-sdd-demo/artifacts/feature-list.md`
-- `.cursor/cursor-sdd-demo/artifacts/data-model.md`
-- `.cursor/cursor-sdd-demo/artifacts/table-definition.md`
+> - `.cursor/cursor-sdd-demo/artifacts/feature-list.md`
+> - `.cursor/cursor-sdd-demo/artifacts/data-model.md`
+> - `.cursor/cursor-sdd-demo/artifacts/table-definition.md`
 
 ### ゴール
 - 問題のCRUD操作を直感的に行える管理画面
@@ -708,7 +708,7 @@ erDiagram
 
 ## アーキテクチャ
 
-詳細な調査ノートは`research.md`を参照。
+> 詳細な調査ノートは`research.md`を参照。
 
 ### アーキテクチャパターン＆境界マップ
 
@@ -839,75 +839,16 @@ sequenceDiagram
 **依存関係**
 - アウトバウンド: Prisma Client — DB操作 (P0)
 
-**契約**: Service [x]
+**契約**:
+- `getQuestions`: フィルタ条件（キーワード、カテゴリ、難易度）でページネーション付き一覧取得
+- `getQuestion`: ID指定で問題詳細取得
+- `createQuestion`: 問題作成（タイトル・本文・カテゴリ・難易度必須）
+- `updateQuestion`: 問題更新
+- `deleteQuestion`: 問題削除
 
-##### サービスインターフェース
-
-```typescript
-// 難易度の型定義
-type Difficulty = 'easy' | 'medium' | 'hard';
-
-// 問題フィルタ条件
-interface QuestionFilter {
-  keyword?: string;
-  categoryId?: number;
-  difficulty?: Difficulty;
-  page?: number;
-  pageSize?: number;
-}
-
-// 問題作成入力
-interface CreateQuestionInput {
-  title: string;
-  content: string;
-  categoryId: number;
-  difficulty: Difficulty;
-  options?: Array<{
-    content: string;
-    isCorrect: boolean;
-    displayOrder: number;
-  }>;
-}
-
-// 問題更新入力
-interface UpdateQuestionInput {
-  title?: string;
-  content?: string;
-  categoryId?: number;
-  difficulty?: Difficulty;
-}
-
-// Server Actions
-async function getQuestions(filter: QuestionFilter): Promise<{
-  questions: Question[];
-  total: number;
-  page: number;
-  pageSize: number;
-}>;
-
-async function getQuestion(id: number): Promise<Question | null>;
-
-async function createQuestion(input: CreateQuestionInput): Promise<{
-  success: boolean;
-  question?: Question;
-  errors?: Record<string, string[]>;
-}>;
-
-async function updateQuestion(id: number, input: UpdateQuestionInput): Promise<{
-  success: boolean;
-  question?: Question;
-  errors?: Record<string, string[]>;
-}>;
-
-async function deleteQuestion(id: number): Promise<{
-  success: boolean;
-  error?: string;
-}>;
-```
-
-- 事前条件: 入力バリデーション済み
-- 事後条件: DB状態が更新される
-- 不変条件: カテゴリIDは存在するカテゴリを参照
+**不変条件**:
+- カテゴリIDは存在するカテゴリを参照
+- 難易度は easy / medium / hard のいずれか
 
 ---
 
@@ -927,61 +868,15 @@ async function deleteQuestion(id: number): Promise<{
 **依存関係**
 - アウトバウンド: Prisma Client — DB操作 (P0)
 
-**契約**: Service [x]
+**契約**:
+- `getUsers`: フィルタ条件でページネーション付き一覧取得
+- `getUser`: ID指定でユーザー詳細取得
+- `createUser`: ユーザー登録（名前・メールアドレス必須）
+- `updateUser`: ユーザー更新
+- `deleteUser`: ユーザー削除
 
-##### サービスインターフェース
-
-```typescript
-// ユーザーフィルタ条件
-interface UserFilter {
-  keyword?: string;
-  page?: number;
-  pageSize?: number;
-}
-
-// ユーザー作成入力
-interface CreateUserInput {
-  name: string;
-  email: string;
-}
-
-// ユーザー更新入力
-interface UpdateUserInput {
-  name?: string;
-  email?: string;
-}
-
-// Server Actions
-async function getUsers(filter: UserFilter): Promise<{
-  users: User[];
-  total: number;
-  page: number;
-  pageSize: number;
-}>;
-
-async function getUser(id: number): Promise<User | null>;
-
-async function createUser(input: CreateUserInput): Promise<{
-  success: boolean;
-  user?: User;
-  errors?: Record<string, string[]>;
-}>;
-
-async function updateUser(id: number, input: UpdateUserInput): Promise<{
-  success: boolean;
-  user?: User;
-  errors?: Record<string, string[]>;
-}>;
-
-async function deleteUser(id: number): Promise<{
-  success: boolean;
-  error?: string;
-}>;
-```
-
-- 事前条件: 入力バリデーション済み
-- 事後条件: DB状態が更新される
-- 不変条件: メールアドレスはユニーク
+**不変条件**:
+- メールアドレスはユニーク（重複時はエラー）
 
 ---
 
@@ -1001,49 +896,16 @@ async function deleteUser(id: number): Promise<{
 **依存関係**
 - アウトバウンド: Prisma Client — DB操作 (P0)
 
-**契約**: Service [x]
+**契約**:
+- `getCategories`: カテゴリ一覧取得
+- `getCategory`: ID指定でカテゴリ詳細取得
+- `createCategory`: カテゴリ作成（名前必須、説明任意）
+- `updateCategory`: カテゴリ更新
+- `deleteCategory`: カテゴリ削除
 
-##### サービスインターフェース
-
-```typescript
-// カテゴリ作成入力
-interface CreateCategoryInput {
-  name: string;
-  description?: string;
-}
-
-// カテゴリ更新入力
-interface UpdateCategoryInput {
-  name?: string;
-  description?: string;
-}
-
-// Server Actions
-async function getCategories(): Promise<Category[]>;
-
-async function getCategory(id: number): Promise<Category | null>;
-
-async function createCategory(input: CreateCategoryInput): Promise<{
-  success: boolean;
-  category?: Category;
-  errors?: Record<string, string[]>;
-}>;
-
-async function updateCategory(id: number, input: UpdateCategoryInput): Promise<{
-  success: boolean;
-  category?: Category;
-  errors?: Record<string, string[]>;
-}>;
-
-async function deleteCategory(id: number): Promise<{
-  success: boolean;
-  error?: string;
-}>;
-```
-
-- 事前条件: 入力バリデーション済み
-- 事後条件: DB状態が更新される
-- 不変条件: 問題が存在するカテゴリは削除不可（要件5.6）
+**不変条件**:
+- カテゴリ名はユニーク
+- 問題が存在するカテゴリは削除不可（要件5.6）
 
 ---
 
