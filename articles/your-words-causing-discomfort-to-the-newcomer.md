@@ -5,7 +5,7 @@ type: "idea" # tech: 技術記事 / idea: アイデア
 topics: ["新人教育","エンジニア","エンジニア教育"]
 published: true
 published_at: 2026-02-08 10:00
-publication_name: "genai"
+# publication_name: "genai"
 ---
 
 # 初めに
