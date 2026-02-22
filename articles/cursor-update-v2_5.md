@@ -50,8 +50,25 @@ MCP servers: Cursor を外部ツールやデータソースに接続するサー
 Hooks: エージェントの挙動を観察・制御できるカスタムスクリプト
 Rules: コーディング規約や設定・好みを遵守させるためのシステムレベルの指示
 
-独自プラグイン作成方法
+#### 独自プラグイン作成方法
 .cursor-plugin/plugin.json マニフェストファイルを含むディレクトリを作成し、rules、skills、agents、commands、その他のコンポーネントを追加してから、Cursor チームに送信。詳細は [Building Plugins](https://cursor.com/ja/docs/plugins/building) を参照してください。
+
+#### プラグイン作者向け（2.5で新規に重要）: 公式リポジトリの構造例
+公式リポジトリでは、Marketplace 用の marketplace.json と各プラグインの .cursor-plugin/plugin.json を中核に、skills/rules/mcp.json等を同梱する構造例が示されています。
+```
+plugins/
+├── .cursor-plugin/
+│   └── marketplace.json
+└── plugin-name/
+    ├── .cursor-plugin/
+    │   └── plugin.json
+    ├── skills/
+    ├── rules/
+    ├── mcp.json
+    ├── README.md
+    ├── CHANGELOG.md
+    └── LICENSE
+```
 
 独自プラグインは公表前にcursorチームによって手動レビュー（AIで確認して終わりではない）を行った後、公開されます。セキュリティ面も一定安全ですね。
 
@@ -77,4 +94,3 @@ Rules: コーディング規約や設定・好みを遵守させるためのシ�
 - エージェントが Plan モードのときに「Build in Cloud」を選択して、プランの実行を Cloud Agent に引き継がせることができるようになりました。これにより、その間もローカルで作業を続けたり、ラップトップを閉じたりできます。
 - エージェントとの会話でメッセージを送信するためのキーボードショートカットとして、⌘+Enter（Ctrl+Enter）を追加。
 - 各エージェントとの新しい会話が常にフレッシュに始まるように、Default Mode 設定を削除。
-
