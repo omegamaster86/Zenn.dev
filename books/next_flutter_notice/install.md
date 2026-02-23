@@ -42,32 +42,4 @@ flutter run
 お疲れ様です〜
 こういうのって詰まるととても時間かかりますよね〜
 まぁCursorやClaude Codeに依頼すれば対応してくれるので、やってもらった方が楽だと思います。
-
-# Next.jsインストール
- Node.jsを入れる（LTS推奨）
- ```
-brew install node
- ```
-確認
-```
-node -v
-npm -v
-```
-Next.jsプロジェクトを作成
-```
-npx create-next-app@latest my-next-app
-```
-開発サーバー起動
-```
-cd my-next-app
-npm run dev
-```
-
-Next.jsの初期画面が表示されれば成功です！
-一旦邪魔なCSSを削除したいので、下記のようにしちゃいましょう〜（ダークモードだと見づらいので）
-
-```:globals.css
-@import "tailwindcss";
-```
-
 さぁ次に行きましょう〜
