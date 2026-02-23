@@ -1,7 +1,7 @@
 title: "Next.jsとFlutterで通知機能を実装してみたんじゃ"
 summary: "Next.jsとFlutterで通知機能を実装してみたんじゃ"
 topics: ["Next.js","Flutter","TypeScript","Firebase","FCM"] # トピック（5つまで）
-published: true # falseだと下書き
+published: false # falseだと下書き
 price: 0 # 有料の場合200〜5000
 chapters:
   - intoro
