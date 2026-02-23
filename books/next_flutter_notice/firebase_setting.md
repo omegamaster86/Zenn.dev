@@ -9,3 +9,5 @@ title: "Firebaseの準備編"
 4. Google Analytics は任意（最初はOFFでもOK）
 5. 作成完了後、プロジェクトを開く
 
+このように作成できれば成功です。
+![](/images/next_flutter_notice/2.png)
