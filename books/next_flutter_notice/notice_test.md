@@ -76,3 +76,5 @@ class _MyHomePageState extends State<MyHomePage> {
 - 受信確認（アプリは閉じておいてください。その方が通知されます。）
 ![](/images/next_flutter_notice/23.jpg)
 ようやく通知機能が実装できましたね〜
+お疲れ様です！！
+あとは皆さんの要件や実装でブラッシュアップしてください。ここまでできれば、あとはAIゴリ押しで実装できるはずです。
