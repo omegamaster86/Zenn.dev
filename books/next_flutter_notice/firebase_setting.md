@@ -27,3 +27,14 @@ title: "Firebaseの準備編"
 4つめが「初期化コードの追加」となっていますが、今回はFlutterを使用しているので、ここは何もせずスキップで良いです。
 そのまま作業を進めていって、コンソールに戻った時に下記の画像と同じようになっていれば問題ないです。
 ![](/images/next_flutter_notice/15.png)
+
+firebase cliがインストールされていなければ、下記を実行してください。
+```
+npm install -g firebase-tools
+```
+その後mobileディレクトリで下記のコマンドを実行してください。
+```
+flutter pub add firebase_core firebase_messaging
+dart pub global activate flutterfire_cli
+flutterfire configure
+```

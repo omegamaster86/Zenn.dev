@@ -1,3 +1,3 @@
 ---
-title: "Firebaseの準備編"
+title: "dartの設定"
 ---
