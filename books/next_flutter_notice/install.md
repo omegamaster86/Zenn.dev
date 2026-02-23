@@ -14,7 +14,7 @@ brew --version
 ```
 
 # Flutterインストール
-さてと、まずFlutterをインストールしていきましょう。今回はFlutter側のソースは触らない予定なので、インストールしてそのままでOKです。
+さてと、まずFlutterをインストールしていきましょう。
 Flutter SDKをMacにインストール（未導入なら）
 ```
 brew install --cask flutter
@@ -64,4 +64,10 @@ npm run dev
 ```
 
 Next.jsの初期画面が表示されれば成功です！
+一旦邪魔なCSSを削除したいので、下記のようにしちゃいましょう〜（ダークモードだと見づらいので）
+
+```:globals.css
+@import "tailwindcss";
+```
+
 さぁ次に行きましょう〜
