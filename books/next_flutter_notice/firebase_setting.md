@@ -11,3 +11,19 @@ title: "Firebaseの準備編"
 
 このように作成できれば成功です。
 ![](/images/next_flutter_notice/2.png)
+
+サイドバーの歯車アイコンをクリックし、全般をクリックしてください。
+下にスクロールすると下記のような画像になるので、iosをクリックしてください。
+![](/images/next_flutter_notice/9.png)
+クリックしたら下記の画面に遷移するので、Xcodeで入力したbundle IDをAplleバンドルIDに入力します。
+![](/images/next_flutter_notice/10.png)
+「ダウンロードした GoogleService-Info.plist ファイルを Xcode プロジェクトのルートに移動し〜」とありますが、私はiosディレクトリの配下に配置しています。それでも問題はないので安心してください。
+![](/images/next_flutter_notice/11.png)
+さぁ次の設定をおこないましょう〜
+いうて書いてある通りなので、ここでは下記の画像が表示されていれば問題なしとします。
+![](/images/next_flutter_notice/12.png)
+![](/images/next_flutter_notice/13.png)
+![](/images/next_flutter_notice/14.png)
+4つめが「初期化コードの追加」となっていますが、今回はFlutterを使用しているので、ここは何もせずスキップで良いです。
+そのまま作業を進めていって、コンソールに戻った時に下記の画像と同じようになっていれば問題ないです。
+![](/images/next_flutter_notice/15.png)
