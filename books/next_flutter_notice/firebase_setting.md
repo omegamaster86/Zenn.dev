@@ -38,3 +38,8 @@ flutter pub add firebase_core firebase_messaging
 dart pub global activate flutterfire_cli
 flutterfire configure
 ```
+下記のような文言が表示されれば成功です！
+```
+Firebase configuration file lib/firebase_options.dart generated successfully with the following Firebase apps:
+```
+さて次はdart側の設定をして行きましょう〜
