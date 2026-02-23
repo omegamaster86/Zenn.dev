@@ -62,3 +62,6 @@ npx create-next-app@latest my-next-app
 cd my-next-app
 npm run dev
 ```
+
+Next.jsの初期画面が表示されれば成功です！
+さぁ次に行きましょう〜
