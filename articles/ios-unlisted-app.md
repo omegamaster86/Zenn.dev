@@ -25,7 +25,7 @@ Appleの「非公開アプリ（Unlisted App）」は、App Storeに審査・公
 | 配信方式 | 用途（どんなとき向いてる？） | 配布対象 | 入手方法 | 特徴（メリット） | 注意点（デメリット） |
 | --- | --- | --- | --- | --- | --- |
 | **Unlisted App（非公開App Store配信）** | 社内・取引先・イベント参加者など、限定メンバーに本番アプリを配りたい | URLを知っているユーザー | App Storeの直接URL | App Store審査を通した正式配信。検索に出ないので一般流入を抑えやすい | URLが共有されると第三者もアクセス可能。厳密なアクセス制御はできない |
-| **Custom App（Apple Business Manager / Apple School Manager）** | 特定企業・組織だけに厳密に配りたい（B2B/B2E） | 指定した組織の管理端末・ユーザー | ABM/ASM経由で配信 | 配布先を組織単位で制御できる。業務アプリ向けに強い | 配布先もABM/ASM運用が必要。導入ハードルはUnlistedより高め |
+| **Custom App（Apple Business Manager / Apple School Manager）** | 特定企業・学校に厳密に配りたい（B2B/B2E） | 指定した組織の管理端末・ユーザー | ABM/ASM経由で配信 | 配布先を組織単位で制御できる。業務アプリ向けに強い | 配布先もABM/ASM運用が必要。導入ハードルはUnlistedより高め |
 | **Public App（通常のApp Store公開）** | 一般ユーザー向けに広く公開したい | すべてのユーザー | App Store検索・ランキング・URL | 集客しやすく、通常のストア運用に乗せやすい | 「非公開配信」にはならない。誰でも見つけられる |
 | **Enterprise Program（社内向け独自配布）** | 自社従業員のみに、App Storeを介さず配布したい | 自社従業員 | MDMや社内配布基盤 | App Storeを介さず柔軟に配布可能 | 参加条件・運用責任が重く、不適切利用は規約違反リスクがある |
 
@@ -34,3 +34,4 @@ Appleの「非公開アプリ（Unlisted App）」は、App Storeに審査・公
 - 「URL知ってる人だけで十分」なら **Unlisted**
 - 「配布先を企業単位で厳密に絞りたい」なら **Custom App**
 - 「まずは検証したい」なら **TestFlight**
+
