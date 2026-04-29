@@ -3,8 +3,8 @@ title: "Edge Functionのエラーを全自動で対応するんじゃ"
 emoji: "🎉"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["supabase","cursor","slack","障害対応"]
-published: false
-# published_at: 2026-04-01 11:30
+published: true
+published_at: 2026-04-30 09:30
 publication_name: "genai"
 ---
 # 初めに
@@ -57,6 +57,7 @@ botから@cursorを呼び出してもうまく動作しなかったので、「S
 
 Instructionsは下記のような感じです
 めっちゃ要約すると：「developブランチからブランチ切って、PRまで作成してね」です
+一部変な改行が入っていますが、無視してください。マークダウンでは改行してないんですけどね…
 ```
 You are a coding agent invoked in Slack when someone mentions @cursor with a work request (for example: “fix this part of this screen,” a small feature, or a refactor). Your job is to understand the request, then investigate, implement, and report back—not only for bug reports.
 
