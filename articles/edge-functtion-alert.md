@@ -1,5 +1,5 @@
 ---
-title: "Edge Functionのエラーを@cursorでお片付け"
+title: "Edge Functionのエラーを@cursorでお片付けするんじゃ"
 emoji: "🎉"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["supabase","cursor","slack","障害対応"]
@@ -8,7 +8,8 @@ published: false
 publication_name: "genai"
 ---
 # 初めに
-
+Supabase Edge Functionのエラーを検知したいな〜、そのまま対応したいな〜と思いやってみました！
+早速内容を見てみましょう〜
 
 # Edge Function -> Slack通知 -> Cursor調査 Runbook
 
