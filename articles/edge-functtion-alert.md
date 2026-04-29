@@ -1,5 +1,5 @@
 ---
-title: "Edge Functionのエラーを@cursorでお片付けするんじゃ"
+title: "Edge Functionのエラーを全自動で対応するんじゃ"
 emoji: "🎉"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["supabase","cursor","slack","障害対応"]
@@ -9,252 +9,120 @@ publication_name: "genai"
 ---
 # 初めに
 Supabase Edge Functionのエラーを検知したいな〜、そのまま対応したいな〜と思いやってみました！
+Edge Functionでエラー検知 -> Slack通知 -> Cursor調査、修正、PR対応を全自動で行います！
 早速内容を見てみましょう〜
 
-# Edge Function -> Slack通知 -> Cursor調査 Runbook
+# Slackの設定
+Slack アプリの作成（Incoming Webhook 用）
+[Slack API の Apps 一覧](https://api.slack.com/apps) で Create New Appをクリック。
+From scratch を選び、アプリ名入力 → 対象ワークスペースを選択して作成。
+2. Incoming Webhooks の有効化と Webhook URL 取得
+アプリ設定の左メニューで Incoming Webhooks を開く。
+Activate Incoming Webhooks を ON。
+Add New Webhook to Workspace で、通知を受け取るチャンネル（例: #〇〇保守）を指定。
+表示された https://hooks.slack.com/services/... をコピー → これが会話中の SLACK_WEBHOOK_URL になります。
+3. チャンネルへの「連携」表示の意味
+チャンネルに added an integration to this channel: Alert(App Name) のようなシステムメッセージが出るのは、そのチャンネルに Webhook（または名前に Alert が付いた連携）が追加されたという意味です。
+4. プライベートチャンネルで使う場合の Slack 側条件
+Incoming Webhook は 作成時に選んだ private チャンネルへ投稿可能、という説明。
+そのチャンネルに Webhook を発行した Slack アプリおよび、Cursor の Slack アプリを /invite @<アプリ名> 等で参加させる。
+5. アプリ設定の左メニューでOAuth & Permissionsを選択、下記のように設定しBot User OAuth Tokenをコピーする。
+これがSLACK_BOT_TOKENの値になります。
+![](/images/edge-functtion-alert/1.png)
+6. SLACK_ALERT_CHANNEL_IDを取得
+Slackのチャンネルを開いてURLを見る
+.../archives/Cxxxxxxx の Cxxxxxxx がID（privateは Gxxxxxxx のこともあります）
 
-このドキュメントは、Supabase Edge Function の異常（非2xx）を Slack に通知し、通知を起点に Cursor で原因調査までつなぐための社内運用手順書です。
 
-## 1. 目的と適用範囲
-
-### 1-1. 目的
-
-- Edge Function 障害の検知を早める
-- Slack から該当関数へ即時に遷移できる状態を作る
-- 通知メッセージから Cursor に調査を依頼し、初動を標準化する
-
-### 1-2. 適用範囲
-
-- Supabase Edge Functions（本リポジトリ）
-- 通知先 Slack チャンネル（例: `#alert`）
-- Cursor Slack アプリ利用時の調査フロー
-
-## 2. 現在の実装概要
-
-### 2-1. 主要ファイル
-
-- 共通通知ヘルパー: `supabase/functions/_shared/slack-alert.ts`
-- 適用中関数: `supabase/functions/get-surveys-results-for-admin/index.ts`
-
-### 2-2. 通知対象（2026-04時点）
-
-`get-surveys-results-for-admin` において、次のステータスで通知されます。
-
-- 405: HTTPメソッド不正
-- 400: `targetNow` 未指定 / `page` 不正
-- 401 / 403: 管理者認証失敗
-- 500: 予期しない例外
-
-### 2-3. 通知送信方式の優先順位
-
-`notifySlackOnNon2xx(...)` は次の順で送信方式を選択します。
-
-1. `SLACK_BOT_TOKEN` + `SLACK_ALERT_CHANNEL_ID` がある場合  
-   -> Slack Web API (`chat.postMessage`)
-2. 上記がない場合  
-   -> Incoming Webhook (`SLACK_WEBHOOK_URL`)
-3. どちらも無い場合  
-   -> 送信スキップ（`skipped`）
-
-## 3. 事前準備（Secrets / Slack設定）
-
-## 3-1. 必須 Secrets
-
-最小構成:
-
-- `SLACK_WEBHOOK_URL`
-
-推奨構成（運用しやすい）:
-
-- `SLACK_BOT_TOKEN`
-- `SLACK_ALERT_CHANNEL_ID`
-- `CURSOR_SLACK_MEMBER_ID`（例: `U0123456789`）
-
-任意:
-
-- `CURSOR_SLACK_MENTION`
-
-## 3-2. Slack側の前提条件
-
-- 通知先チャンネルに対象アプリ（Webhook元アプリ / Bot / Cursorアプリ）が参加している
-- private channel の場合は `/invite @AppName` が必要
-- Cursorアプリをメンション起動したい場合、Cursorアプリが同じチャンネルに参加済みであること
-
-## 3-3. Secret設定コマンド例
-
-```bash
-# Webhook方式
-supabase secrets set SLACK_WEBHOOK_URL="https://hooks.slack.com/services/..."
-
-# Bot方式
-supabase secrets set SLACK_BOT_TOKEN="xoxb-..."
-supabase secrets set SLACK_ALERT_CHANNEL_ID="C0123456789"
-
-# Cursorメンション
-supabase secrets set CURSOR_SLACK_MEMBER_ID="U0123456789"
-```
-
-## 4. 実装標準（Edge Function側）
-
-## 4-1. 組み込み位置
-
-以下の方針で統一します。
-
-- `logger.LoggingEnd(...)` の直後
-- 実際に非2xxレスポンスを返す直前
-- 例外処理（`catch`）では 500 通知を送る
-
-## 4-2. 実装テンプレート
-
+# supabaseの設定
+言うてさっき取得したSLACK_ALERT_CHANNEL_ID、SLACK_WEBHOOK_UR、SLACK_BOT_TOKENをsecret（環境変数を記載する場所）に記載するだけです。
+あとは実装で欲しい情報を出すようにcursorやclaudeに依頼してコードを作成しましょう
+私は下記のようにしています。
 ```ts
-import { notifySlackOnNon2xx } from "../_shared/slack-alert.ts";
-
-const functionName = "your-edge-function";
-
-const notifyIfNon2xx = async (
-  status: number,
-  errorMessage: string,
-  details?: Record<string, unknown>,
-) => {
-  const notifyResult = await notifySlackOnNon2xx({
-    functionName,
-    request: req,
-    status,
-    errorMessage,
-    details,
-  });
-  if (notifyResult === "failed") {
-    logger.LoggingWarn("slack_notify_failed", { status, errorMessage });
-  }
-};
+function: Edge Function名
+status: 405
+method: POST
+error: Method Not Allowed
+event_message: {"level":"warn","ts":"2026-"}と記載のあるエラーメッセージ
+dashboard: Edge FunctionへのURL
 ```
 
-## 4-3. 実装時の注意
+# cursor automationsの設定
+[ここから](https://cursor.com/ja/automations)automationsを設定しましょう。
 
-- 通知失敗で本処理を失敗させない（監視は補助、業務処理が主）
-- `details` は必要最小限（PIIや秘匿値を入れない）
-- 既存ログ出力構造（`LoggingStart/End`）を崩さない
+Triggers
+どこのチャンネルでどんなメッセージと一致したら発火するか、誰からでもいいのか？みたいな設定をします
+botから@cursorを呼び出してもうまく動作しなかったので、「Supabase Edge Function Alert」と一致したら、発火するようにしました。
+![](/images/edge-functtion-alert/2.png)
 
-## 5. Slack通知フォーマット仕様
-
-## 5-1. 標準出力項目
-
-- `function`
-- `status`
-- `method`
-- `path`
-- `error`
-- `event_message`（JSON文字列）
-- `dashboard`（推奨。関数画面リンク）
-- `details`（重複キー除去後に残る情報のみ）
-
-## 5-2. 重複除外ルール
-
-`details` から次のキーは自動除外されます。
-
-- `status`
-- `method`
-- `path`
-- `error`
-- `errorMessage`
-
-## 5-3. 生成される Dashboard URL
-
-`request.url` のホストが `<project-ref>.supabase.co` の場合、次を生成します。
-
-`https://supabase.com/dashboard/project/<project-ref>/functions/<function-name>`
-
-## 6. 障害発生時の運用フロー（実運用）
-
-1. Slack `#alert` 通知を確認
-2. `function` / `status` / `error` / `event_message` を読む
-3. `dashboard` リンクから Supabase Function 画面を開く
-4. Function Logs で同時刻の `requestId` / error を確認
-5. 必要に応じて通知スレッドで Cursor に調査依頼
-6. 暫定対応（再実行 / ロールバック / feature flag）を判断
-7. 恒久対応のIssue化と再発防止策を記録
-
-## 7. Cursor調査依頼テンプレート（Slack）
-
-## 7-1. 手動依頼テンプレート（スレッド推奨）
-
-```text
-@Cursor
-Supabase Edge Functionの異常を調査してください。
-function: get-surveys-results-for-admin
-status: 500
-path: /get-surveys-results-for-admin
-dashboard: https://supabase.com/dashboard/project/<project-ref>/functions/get-surveys-results-for-admin
-依頼内容: 再現条件、根本原因、影響範囲、修正案、暫定回避策を提示してください。
+Instructionsは下記のような感じです
+めっちゃ要約すると：「developブランチからブランチ切って、PRまで作成してね」です
 ```
+You are a coding agent invoked in Slack when someone mentions @cursor with a work request (for example: “fix this part of this screen,” a small feature, or a refactor). Your job is to understand the request, then investigate, implement, and report back—not only for bug reports.
 
-## 7-2. 自動メンション条件
+Step 1: Read the full context of the request
+The trigger may only include the first message’s text. Always use ReadSlackMessages with the channel and thread_ts from the Slack trigger payload to load the full thread, including follow-up messages and screenshots or images that clarify what to change.
 
-- `CURSOR_SLACK_MEMBER_ID` が有効な場合は `<@...>` を自動付与
-- 無い場合は `CURSOR_SLACK_MENTION`、さらに無い場合は `@Cursor` を使用
+Confirm the message invokes you via @cursor (or the configured bot mention). If the thread is clearly not directed at you (no @cursor / no actionable request), do not start implementation; reply briefly in the thread that you need an @cursor mention and a concrete request.
 
-## 8. 動作確認手順（検証用）
+From the thread, extract: what should change, where (UI, file hints, URLs), and acceptance in plain language. Treat that as the specification for the next steps.
 
-## 8-1. デプロイ
+Implementation will always be done on a new branch created from develop (see Step 3)—never by committing directly on develop.
 
-```bash
-supabase functions deploy get-surveys-results-for-admin --project-ref <project-ref>
+Step 2: Investigate
+Use screenshots, UI text, error messages, or descriptions from the thread as starting points.
+
+Search the codebase for the relevant code. Use file names, component names, CSS class names, error messages, or visible UI copy as search hints.
+
+Identify what must change and why (data flow, state, API, styling, etc.)—don’t only patch the obvious line; understand the behavior behind it.
+
+Use memories to aid your investigation. Write important learnings to memories if they might help you in the future.
+
+Step 3: Implement the change
+Git workflow (required):
+
+Ensure you are working from an up-to-date develop: check out develop and update it from the remote as needed (e.g. git fetch / git checkout develop / git pull per your environment).
+From develop, create a new branch for this task (use a clear branch name, e.g. including the request or issue context). All commits for this change must go on this new branch only.
+Implement the change on that branch.
+Open a pull request that targets develop. Do not commit, push, or merge directly to develop—all changes must land through a PR.
+Implement a clean, minimal change. Change only what’s necessary. Follow existing code patterns and conventions.
+
+Avoid regressions: consider edge cases and related code paths.
+
+Step 4: Report back
+
+Reply in the same Slack thread as the @cursor request with a concise summary.
+If you completed the work:
+
+What was requested (1–2 sentences)
+What you changed (file names and brief description)
+Do not include a link to the PR; the system will attach it when applicable.
+If you could not complete the work, still reply in the thread with:
+
+What you understood from the request
+What you found in the codebase
+Why you couldn’t finish (e.g. ambiguous spec, needs product decision, blocked by dependency, too large for one PR)
+Keep Slack messages brief and technical.
+
+Tool constraints
+
+Only reply in the thread of the @cursor request. Do not send messages elsewhere.
+Only read messages in the configured Slack channel.
+Always use your Read path so you see images and confirm the correct message / thread (thread_ts).
+Only create a PR if you have a working change that matches the request (or the best partial fix you can justify).
+Always use a branch created from develop for implementation; never push to develop (or the base branch) directly.
+If you cannot find the thread to reply to (e.g. the message was deleted), do not post to Slack.
+Do not include a link to the PR in your reply.
 ```
+Toolsの設定
+![](/images/edge-functtion-alert/3.png)
 
-## 8-2. 405を意図的に発生
+# 動作確認
+![](/images/edge-functtion-alert/4.png)
+期待通りですね〜
+supabaseで条件値、cursorが調査対応、その先は皆さんで試してみてください！
+（黒塗りが面倒だったのは秘密）
 
-```bash
-curl -i -X POST "https://<project-ref>.supabase.co/functions/v1/get-surveys-results-for-admin"
-```
-
-期待値:
-
-- HTTP 405
-- Slack通知が1件到達
-- 通知本文に `function`, `status`, `dashboard` が含まれる
-
-## 8-3. 400を意図的に発生（`targetNow` 欠落）
-
-```bash
-curl -i -H "Authorization: Bearer <token>" -H "apikey: <token>" \
-  "https://<project-ref>.supabase.co/functions/v1/get-surveys-results-for-admin"
-```
-
-期待値:
-
-- HTTP 400（`targetNow is required`）
-- Slack通知が到達
-
-## 9. トラブルシュート
-
-## 9-1. 通知が来ない
-
-確認順:
-
-1. 関数が最新コードで再デプロイ済みか
-2. Secrets がデプロイ先プロジェクトに設定済みか
-3. チャンネルID / Webhook URL が正しいか
-4. private channel にアプリが参加しているか
-5. Function Logs に `slack_notify_failed` が出ていないか
-
-## 9-2. 通知内容が古い
-
-- 旧バージョン関数が稼働している可能性が高い
-- 再デプロイ後に 405 を1回送ってフォーマットを確認
-
-## 9-3. `@Cursor` が反応しない
-
-- `CURSOR_SLACK_MEMBER_ID` が誤っている
-- Cursorアプリがチャンネル未参加
-- plain text で `@cursor` と書いており実メンション扱いになっていない
-
-## 10. セキュリティ運用
-
-- `SLACK_WEBHOOK_URL` / `SLACK_BOT_TOKEN` は必ず Secrets 管理
-- チャット・スクリーンショットでトークン露出時は即ローテーション
-- `details` に個人情報・機密値を入れない
-- 必要に応じて通知チャンネルを環境別に分離（dev/stg/prod）
-
-## 11. 変更履歴
-
-- 2026-04-29: 初版作成（Edge Function -> Slack -> Cursor 運用手順を独立ドキュメント化）
+# 最後に
+もちろんエラー内容は皆さんで確認して欲しいですが、大体の対応は出来るではないかと思っています。今後弊社では実際に運用してみて、効果を検証したいと思います。
+まぁEdge Functionのエラー自体全然発生していないですが、リリース後とかには役に立つかなと思います。
