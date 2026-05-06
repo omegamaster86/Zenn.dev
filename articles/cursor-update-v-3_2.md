@@ -27,3 +27,9 @@ publication_name: "genai"
 [Cursor ダッシュボードのチームのモデル設定を開いて設定](https://cursor.com/ja/dashboard/team-settings#privacy)できます。
 私は管理者ではないので画面が見せられませんが、「お金のかかるモデルを使用してほしくない」という企業向けにはありがたいですね。（弊社は好きなモデルを使用していいので、あまり関係なさそうですね）
 
+# ソフト上限とインテリジェント アラート
+管理者は、ユーザーがブロックされるのを防ぐために、ハード上限ではなくソフト上限を設定できるようになりました。Cursor は使用量を監視することもでき、ソフト上限またはハード上限の 50%、80%、100% に達したユーザーに自動でアラートを送信します。
+[Cursor ダッシュボードのチームのspending](https://cursor.com/ja/dashboard/team-settings#spending)から設定できるようです。
+管理者ではないので、画面はありませんが、各エンジニアがしっかり使用しているか確認したい方向けにいい気がしています。
+ちなみに過去のcursor meetup osakaでこんな資料がありました。一定層にはありがたそうですね〜
+https://speakerdeck.com/monotaro/monotaroudecursorwodao-ru-sitemitali-xiang-toxian-shi-soretowei-lai?slide=22
