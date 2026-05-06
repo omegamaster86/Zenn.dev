@@ -88,7 +88,20 @@ for await (const event of run.stream()) {
 }
 ```
 
+# エージェントウィンドウでマルチタスク
+`/multitask` を使うと、リクエストをキューに追加する代わりに、Cursor が非同期サブエージェントを実行して並列処理します。また、大きなタスクを小さな単位に分割し、複数の非同期サブエージェントが同時に対応できるようにします。
+
+すでにキューにメッセージがある場合も、現在の実行が終わるのを待たずに、それらに対して Cursor にマルチタスクさせることができます。
+イメージはこんな感じです。
+![](/images/cursor-update-v-3_2/2.png)
+
+
+
 
 
 # 今回は割愛したもの
 [チームマーケットプレイスの更新](https://cursor.com/ja/changelog#:~:text=%E6%9C%881%E6%97%A5-,%E3%83%81%E3%83%BC%E3%83%A0%E3%83%9E%E3%83%BC%E3%82%B1%E3%83%83%E3%83%88%E3%83%97%E3%83%AC%E3%82%A4%E3%82%B9%E3%81%AE%E6%9B%B4%E6%96%B0,-%E7%AE%A1%E7%90%86%E8%80%85%E3%81%AF%E3%80%81%E5%85%88%E3%81%AB)
+
+[キャンバス](https://cursor.com/ja/changelog/page/2#:~:text=%E6%9C%8815%E6%97%A5-,%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9,-Cursor%20%E3%81%AF%E3%80%81%E5%AF%BE%E8%A9%B1)
+
+[CLI の Debug Mode と /btw サポート](https://cursor.com/ja/changelog/page/2#:~:text=CLI%20%E3%81%AE%20Debug%20Mode%20%E3%81%A8%20/btw%20%E3%82%B5%E3%83%9D%E3%83%BC%E3%83%88)
