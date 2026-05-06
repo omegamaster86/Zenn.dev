@@ -1,5 +1,5 @@
 ---
-title: "CursorのV3.2と周辺情報をまとめるんじゃ"
+title: "CursorのV3.2とCursor SDKをまとめるんじゃ"
 emoji: "🌕"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["cursor","AI","AI駆動開発"]
@@ -88,13 +88,6 @@ for await (const event of run.stream()) {
 }
 ```
 
-# エージェントウィンドウでマルチタスク
-`/multitask` を使うと、リクエストをキューに追加する代わりに、Cursor が非同期サブエージェントを実行して並列処理します。また、大きなタスクを小さな単位に分割し、複数の非同期サブエージェントが同時に対応できるようにします。
-
-すでにキューにメッセージがある場合も、現在の実行が終わるのを待たずに、それらに対して Cursor にマルチタスクさせることができます。
-イメージはこんな感じです。
-![](/images/cursor-update-v-3_2/2.png)
-
 
 
 
@@ -105,3 +98,6 @@ for await (const event of run.stream()) {
 [キャンバス](https://cursor.com/ja/changelog/page/2#:~:text=%E6%9C%8815%E6%97%A5-,%E3%82%AD%E3%83%A3%E3%83%B3%E3%83%90%E3%82%B9,-Cursor%20%E3%81%AF%E3%80%81%E5%AF%BE%E8%A9%B1)
 
 [CLI の Debug Mode と /btw サポート](https://cursor.com/ja/changelog/page/2#:~:text=CLI%20%E3%81%AE%20Debug%20Mode%20%E3%81%A8%20/btw%20%E3%82%B5%E3%83%9D%E3%83%BC%E3%83%88)
+
+
+[マルチタスク、ワークツリー、マルチルートワークスペース](https://cursor.com/ja/changelog#:~:text=%E3%83%9E%E3%83%AB%E3%83%81%E3%82%BF%E3%82%B9%E3%82%AF%E3%80%81%E3%83%AF%E3%83%BC%E3%82%AF%E3%83%84%E3%83%AA%E3%83%BC%E3%80%81%E3%83%9E%E3%83%AB%E3%83%81%E3%83%AB%E3%83%BC%E3%83%88%E3%83%AF%E3%83%BC%E3%82%AF%E3%82%B9%E3%83%9A%E3%83%BC%E3%82%B9)
