@@ -61,6 +61,8 @@ Security Review を設定するには、[Security Review ダッシュボード](
 | Cloud (Cursor-hosted) | 分離された VM で実行され、repo はその中にクローンされます。VM の実行は Cursor が管理します。 | 呼び出し元が repo を持っていない場合、多数のエージェントを並列で実行したい場合、または呼び出し元が切断しても実行を継続する必要がある場合。 |
 | Cloud (self-hosted) | 基本的な構成は同じですが、VM は セルフホスト型プール 経由で自分で実行します。 | Cursor-hosted と同じ理由に加え、コード、シークレット、ビルドアーティファクトを自分の環境に保持する必要がある場合。 |
 
+実行時は、Agent.create() に渡すキー (local または cloud) によって決まります。どちらでも同じ CURSOR_API_KEY を使用します。
+
 ### 認証系
 エージェントを作成する前に、CURSOR_API_KEY を設定するか、apiKey を渡してください。
 SDK では、ローカル実行とクラウド実行の両方で、ユーザー API キーとサービスアカウントの API キーを使用できます。Team Admin API キーはまだサポートされていないようです。
@@ -71,7 +73,7 @@ SDK では、ローカル実行とクラウド実行の両方で、ユーザー 
 ```
 npm install @cursor/sdk
 ```
-### クイックスタート
+### 使用イメージ
 ```ts
 import { Agent } from "@cursor/sdk";
 
