@@ -117,6 +117,36 @@ npm install @cursor/sdk
 
 local も cloud も指定しないと local に寄ってしまう、そして cloud を使うなら repos を明示しないと意図せず local になり得るので注意が必要です。
 
+### 典型的なワークフロー
+典型的な利用フローは、AgentOptions の決定から始まります。ここで runtime を local / cloud から選び、必要なら mcpServers や agents を差し込みます。次に Agent.prompt か Agent.create か Agent.resume を選び、Run を取得したら run.stream() で live event を消費するか、run.wait() で最終結果を待つかを決めます。終わったら run.conversation() で履歴を取得し、必要に応じて agent.listArtifacts() / downloadArtifact() を呼びます。
+```mermaid
+flowchart LR
+  A[AgentOptionsを組み立てる] --> B{呼び出し方を選ぶ}
+  B -->|one-shot| C[Agent.prompt]
+  B -->|stateful| D[Agent.create]
+  B -->|resume| E[Agent.resume]
+
+  D --> F[agent.send]
+  E --> F
+  C --> G[最終結果]
+  F --> H[Run]
+
+  H --> I[run.stream]
+  H --> J[run.wait]
+  H --> K[run.conversation]
+  H --> L[run.cancel]
+
+  I --> M[SDKMessage群]
+  M --> M1[system / user / assistant]
+  M --> M2[tool_call / thinking]
+  M --> M3[status / request / task]
+
+  J --> G
+  G --> N[agent.listArtifacts]
+  N --> O[agent.downloadArtifact]
+ ...
+```
+
 ### 使用イメージ
 ```ts
 import { Agent } from "@cursor/sdk";
@@ -184,7 +214,7 @@ const agent = await Agent.create({
 
 ### モデル パラメータ
 
-`model.params` を使用して、reasoning effort や max mode などのモデルごとのオプションを渡します。パラメータ ID と値はモデルによって異なります。[`Cursor.models.list()`](https://cursor.com/ja/docs/sdk/typescript.md#cursormodelslist) を使用して、アカウントでサポートされているパラメータやプリセット バリアントを確認できます。
+`model.params` を使用して、reasoning effort や max mode などのモデルごとのオプションを渡します。パラメータ ID と値はモデルによって異なります。`Cursor.models.list()` を使用して、アカウントでサポートされているパラメータやプリセット バリアントを確認できます。
 
 ```typescript
 const agent = await Agent.create({
@@ -407,7 +437,7 @@ const run = await agent.send("Refactor the utils module", {
 
 ***
 
-次の3つのセクションでは、`SDKMessage`、`InteractionUpdate`、`ConversationTurn` の詳細なリファレンスを説明します。初読ではざっと目を通すか、読み飛ばしてかまいません。[エージェントの再開](https://cursor.com/ja/docs/sdk/typescript.md#resuming-agents) で本題に戻ります。
+次の3つのセクションでは、`SDKMessage`、`InteractionUpdate`、`ConversationTurn` の詳細なリファレンスを説明します。初読ではざっと目を通すか、読み飛ばしてかまいません。エージェントの再開で本題に戻ります。
 
 ## ストリームイベント
 
@@ -692,7 +722,7 @@ interface ShellOutput {
 }
 ```
 
-`ToolCall` は、すべての組み込みツール (shell、edit、read、write、glob、grep、ls、semSearch、mcp、task など) に対する判別共用体です。その構造は内部実装向けです。詳しくは、「ストリーム イベント」の [安定性に関する注記](https://cursor.com/ja/docs/sdk/typescript.md#stream-events) を参照してください。
+`ToolCall` は、すべての組み込みツール (shell、edit、read、write、glob、grep、ls、semSearch、mcp、task など) に対する判別共用体です。その構造は内部実装向けです。
 
 ## エージェントを再開する
 
@@ -940,8 +970,8 @@ interface SDKRepository {
 **Cloud Agent** は次のソースからサーバーを読み込みます。
 
 1. `agent.send()` の `mcpServers`。その実行では、作成時のサーバーを完全に置き換えます (マージされません) 。
-2. `Agent.create()` の `mcpServers`。送信ごとの 上書き がない場合に使用されます。
-3. [cursor.com/agents](https://cursor.com/agents) 上の、ユーザーおよびチームの MCP サーバー。
+2. `Agent.create()` の `mcpServers`。送信ごとの 上書きがない場合に使用されます。
+3. cursor.com/agents 上の、ユーザーおよびチームの MCP サーバー。
 
 インライン サーバーに `auth` または `headers` が含まれておらず、以前に cursor.com/agents でそのサーバー URL を認可している場合、個人用 API トークンで認証された実行では、それらの OAuth トークンが自動的に再利用されます。サービスアカウントの API キーはユーザーに関連付けられていないため、ユーザー auth にフォールバックすることはできません。
 
@@ -1019,8 +1049,6 @@ const agent = await Agent.create({
 - Stdio の `env` 値は、サーバーがそこで実行されるため、VM に渡されます。他の実行時シークレットと同様に扱ってください。
 - cursor.com/agents で設定された MCPサーバーの OAuth は、チームレベルのサーバーであってもユーザーごとに維持されます。
 
-完全な設定形式については [MCP](https://cursor.com/docs/mcp.md) を参照してください。Cloud 固有の挙動については [Cloud Agent capabilities](https://cursor.com/docs/cloud-agent/capabilities.md#mcp-tools) を参照してください。
-
 ## サブエージェント
 
 メインエージェントが `Agent` ツール経由で呼び出す、名前付きのサブエージェントを定義します。インラインで指定します:
@@ -1052,8 +1080,6 @@ const agent = await Agent.create({
 
 - **ローカル:** `local.cwd` として渡されたリポジトリに `.cursor/hooks.json` を追加するか、user-level フック用に `~/.cursor/hooks.json` を追加します。
 - **Cloud:** `cloud.repos` で渡されたリポジトリに `.cursor/hooks.json` とそのスクリプトをコミットします。SDK で作成された Cloud Agent はプロジェクトフックを自動的に読み込みます。エンタープライズプランでは、チームフックとエンタープライズ管理フックも実行します。
-
-設定形式については[Hooks](https://cursor.com/docs/hooks.md)を参照し、クラウドの挙動については[Cloud Agents hooks support](https://cursor.com/docs/cloud-agent.md#hooks-support)を参照してください。
 
 ## アーティファクト
 
@@ -1102,7 +1128,7 @@ await agent[Symbol.asyncDispose]();
 
 | プロパティ        | 型                                                                                                       | デフォルト                                    | 説明                                                                                                            |
 | :----------- | :------------------------------------------------------------------------------------------------------ | :--------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
-| `model`      | `ModelSelection`                                                                                        | ローカルでは必須。Cloud ではサーバーで解決されたデフォルトにフォールバック | 使用するモデル。[`ModelSelection`](https://cursor.com/ja/docs/sdk/typescript.md#modelselection)を参照してください。             |
+| `model`      | `ModelSelection`                                                                                        | ローカルでは必須。Cloud ではサーバーで解決されたデフォルトにフォールバック | 使用するモデル。`ModelSelection`を参照してください。             |
 | `apiKey`     | `string`                                                                                                | `CURSOR_API_KEY` env                     | ユーザー API キーまたはサービスアカウントキー。チーム Admin キーはまだサポートされていません。                                                         |
 | `name`       | `string`                                                                                                | 自動生成                                     | `Agent.list()` / `Agent.get()` で `title` として表示される、人が読めるエージェント名。                                               |
 | `local`      | `{ cwd?: string \| string[]; settingSources?: SettingSource[]; sandboxOptions?: { enabled: boolean } }` |                                          | ローカルエージェント の設定。`settingSources` は環境設定レイヤー (`"project"`、`"user"`、`"team"`、`"mdm"`、`"plugins"`、`"all"`) を選択します。 |
@@ -1115,7 +1141,7 @@ await agent[Symbol.asyncDispose]();
 
 | プロパティ| 型| デフォルト | 説明 |
 | :-------------------- | :---------------------------------------------------------------------------------------------------------- | :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| `env`                 | `{ type: "cloud"; name?: string } \| { type: "pool"; name?: string } \| { type: "machine"; name?: string }` | `{ type: "cloud" }` | 実行環境。`cloud` は Cursor がホストする VM を使用します。`pool` と `machine` は [セルフホスト型プール](https://cursor.com/docs/cloud-agent/self-hosted-pool.md) を対象とします。 |
+| `env`                 | `{ type: "cloud"; name?: string } \| { type: "pool"; name?: string } \| { type: "machine"; name?: string }` | `{ type: "cloud" }` | 実行環境。`cloud` は Cursor がホストする VM を使用します。`pool` と `machine` は セルフホスト型プールを対象とします。 |
 | `repos`               | `Array<{ url: string; startingRef?: string; prUrl?: string }>`                                              |                     | VM にクローンするリポジトリ。既存の PR にエージェントを紐付けるには、`prUrl` を渡します。                                                                                       |
 | `workOnCurrentBranch` | `boolean`                                                                                                   | `false`             | 新しいブランチではなく、既存のブランチにコミットをプッシュします。                                                                                                          |
 | `autoCreatePR`        | `boolean`                                                                                                   | `false`             | 実行完了時に PR を作成します。                                                                                                                          |
@@ -1144,7 +1170,7 @@ interface ModelParameterValue {
 }
 ```
 
-`id` はモデル識別子です (例: `"composer-2"`) 。`params` には、推論量などのモデルごとのパラメータを指定します。有効な id、パラメータ定義、アカウントで利用可能なプリセット バリアントを確認するには、[`Cursor.models.list()`](https://cursor.com/ja/docs/sdk/typescript.md#cursormodelslist) を使用します。
+`id` はモデル識別子です (例: `"composer-2"`) 。`params` には、推論量などのモデルごとのパラメータを指定します。有効な id、パラメータ定義、アカウントで利用可能なプリセット バリアントを確認するには、`Cursor.models.list()` を使用します。
 
 ### McpServerConfig
 
