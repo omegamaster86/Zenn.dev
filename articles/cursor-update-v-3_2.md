@@ -55,6 +55,31 @@ Security Review を設定するには、[Security Review ダッシュボード](
 
 # Cursor SDK
 @cursor/sdk パッケージを使うと、自分のコードから Cursor のエージェントを呼び出せます。Cursor IDE、CLI、Web アプリで動作するのと同じエージェントを、TypeScript からスクリプトで利用できるようになりました。開発を始める際には、Cursor ネイティブの /sdk スキルも使用できます。
+Cursor の強みである、コードベース理解、ツール呼び出し、MCP、ローカル実行、クラウド実行、PR 作成まで含む“Coding Agent Harness”を丸ごと再利用できそうですね。
+
+ワンショットの CI スクリプトや簡単なレビュー自動化には Agent.prompt()、会話継続・進捗配信・キャンセル・観測が必要なら Agent.create() と agent.send()、プロセスをまたぐ再開が必要なら Agent.resume() を選びます。ローカルは「今ある checkout と資格情報を使って速く回す」ため、クラウドは「長時間・PR・分離実行・並列化」のため、と役割分担するのが失敗しにくい設計です。
+
+公式的に想定ユースケースとしては、CI/CD パイプライン、GitHub Action、バックエンドサービス、Webhook 駆動の自動化、リポジトリ横断のレビュー・修正・要約が明示されています。
+
+ローカル実行では cwd 配下のワークツリーとローカルイベント／状態ストアを使い、クラウド実行では GitHub リポジトリ URL を元に VM を立ち上げ、必要なら PR まで自動で作成してくれます。
+```mermaid
+flowchart LR
+  App["TypeScript / Node.js App"] --> AgentAPI["Agent.create / Agent.prompt / Agent.resume"]
+  AgentAPI --> Local["Local Runtime"]
+  AgentAPI --> Cloud["Cloud Runtime"]
+  Local --> CWD["Current repo / cwd"]
+  Local --> LocalMCP["MCP stdio / HTTP"]
+  Local --> LocalStore["Local persisted state"]
+  Cloud --> VM["Cursor-hosted or self-hosted VM"]
+  Cloud --> GitHub["Clone repo / branch / PR"]
+  Cloud --> CloudMCP["MCP HTTP / stdio in VM"]
+  AgentAPI --> Run["Run handle"]
+  Run --> Stream["stream()"]
+  Run --> Wait["wait()"]
+  Run --> Cancel["cancel()"]
+  Run --> Conversation["conversation()"]
+```
+
 | 実行時 | 役割 | 使用するタイミング |
 | --- | --- | --- |
 | Local | Node プロセス内でエージェントをインラインで実行します。ファイルはディスクから読み込まれます。 | ワーキングツリーに対する開発用スクリプトや CI チェック。 |
@@ -79,7 +104,7 @@ import { Agent } from "@cursor/sdk";
 
 const agent = await Agent.create({
   apiKey: process.env.CURSOR_API_KEY!,
-  model: { id: "composer-2" },
+  model: { id: "composer-2" }, //モデルを選ぶ場所
   local: { cwd: process.cwd() },
 });
 
