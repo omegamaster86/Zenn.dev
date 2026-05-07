@@ -61,7 +61,8 @@ Cursor の強みである、コードベース理解、ツール呼び出し、M
 
 公式的に想定ユースケースとしては、CI/CD パイプライン、GitHub Action、バックエンドサービス、Webhook 駆動の自動化、リポジトリ横断のレビュー・修正・要約が明示されています。
 
-ローカル実行では cwd 配下のワークツリーとローカルイベント／状態ストアを使い、クラウド実行では GitHub リポジトリ URL を元に VM を立ち上げ、必要なら PR まで自動で作成してくれます。
+ローカル実行では cwd 配下のワークツリーとローカルイベント／状態ストアを使い、クラウド実行では GitHub リポジトリ URL を元に VM を立ち上げ、必要なら PR を作成したり、ブランチをプッシュしたり、デモやスクリーンショットを添付したりできます。
+
 ```mermaid
 flowchart LR
   App["TypeScript / Node.js App"] --> AgentAPI["Agent.create / Agent.prompt / Agent.resume"]
@@ -94,10 +95,27 @@ SDK では、ローカル実行とクラウド実行の両方で、ユーザー 
 - Cursor Dashboard → Integrations の ユーザー API キー
 - チーム設定 の サービスアカウントの API キー。サービスアカウント を参照してください
 
+
+
+
 ### インストール
 ```
 npm install @cursor/sdk
 ```
+### 導入の最小手順
+
+| 項目 | 実務上の要点 |
+| --- | --- |
+| パッケージ | npm install @cursor/sdk |
+| Node.js | 18+ |
+| 認証 | apiKey オプション、または CURSOR_API_KEY |
+| ローカル実行 | local: { cwd } を明示する |
+| クラウド実行 | cloud: { repos: [{ url, startingRef? }] } を明示する |
+| モデル | local では必須、cloud では省略可 |
+| 典型的な初手 | 一回だけなら Agent.prompt()、継続対話なら Agent.create() |
+
+local も cloud も指定しないと local に寄ってしまう、そして cloud を使うなら repos を明示しないと意図せず local になり得るので注意が必要です。
+
 ### 使用イメージ
 ```ts
 import { Agent } from "@cursor/sdk";
