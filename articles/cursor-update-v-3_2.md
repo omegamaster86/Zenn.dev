@@ -246,16 +246,16 @@ interface SDKAgent {
 }
 ```
 
-| メンバー                    | 説明                                                                                                            |
-| :---------------------- | :------------------------------------------------------------------------------------------------------------ |
-| `agentId`               | 安定したエージェント識別子。ローカルでは `agent-<uuid>`、クラウドでは `bc-<uuid>`。                                                       |
-| `model`                 | 現在選択されているモデル。`send({ model })` が成功するたびに更新されます。何らかの形で設定されるまでは `undefined` です (`model` を渡さずに再開されたエージェントを含みます) 。 |
-| `send`                  | 指定したプロンプトで新しい実行を開始します。`Run` ハンドルを返します。                                                                        |
-| `close`                 | 完了を待たずに破棄を開始します。Fire-and-forget。                                                                              |
-| `reload`                | 破棄せずに、ファイルシステム設定 (フック、プロジェクト MCP、サブエージェント) を再読み込みします。                                                         |
-| `[Symbol.asyncDispose]` | 非同期で破棄します。自動クリーンアップには `await using` と組み合わせて使用します。                                                             |
-| `listArtifacts`         | エージェントが生成したファイルを一覧表示します (クラウドのみ。ローカルでは空の結果を返します) 。                                                            |
-| `downloadArtifact`      | パスを指定してファイルをダウンロードします (クラウドのみ。ローカルでは例外をスローします) 。                                                              |
+| メンバー | 説明 |
+| --- | --- |
+| `agentId` | 安定したエージェント識別子。ローカルでは `agent-<uuid>`、クラウドでは `bc-<uuid>`。 |
+| `model` | 現在選択されているモデル。`send({ model })` が成功するたびに更新されます。何らかの形で設定されるまでは `undefined` です (`model` を渡さずに再開されたエージェントを含みます) 。 |
+| `send` | 指定したプロンプトで新しい実行を開始します。`Run` ハンドルを返します。 |
+| `close` | 完了を待たずに破棄を開始します。Fire-and-forget。 |
+| `reload` | 破棄せずに、ファイルシステム設定 (フック、プロジェクト MCP、サブエージェント) を再読み込みします。 |
+| `[Symbol.asyncDispose]` | 非同期で破棄します。自動クリーンアップには `await using` と組み合わせて使用します。 |
+| `listArtifacts` | エージェントが生成したファイルを一覧表示します (クラウドのみ。ローカルでは空の結果を返します) 。 |
+| `downloadArtifact` | パスを指定してファイルをダウンロードします (クラウドのみ。ローカルでは例外をスローします) 。 |
 
 ### Agent.prompt()
 
@@ -427,13 +427,13 @@ const run = await agent.send("Refactor the utils module", {
 
 ### 送信ごとのオプション
 
-| プロパティ         | 型                                             | 説明                                                                                                                            |
-| :------------ | :-------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
-| `model`       | `ModelSelection`                              | 送信ごとのモデル上書き設定です。省略した場合は `agent.model` を使用します。継続適用: 送信が成功すると `agent.model` が更新されます。                                            |
-| `mcpServers`  | `Record<string, McpServerConfig>`             | インラインの MCP server 定義です。この実行では、作成時に設定した server を完全に置き換えます。                                                                     |
-| `onStep`      | `(args: { step }) => void \| Promise<void>`   | 各会話ステップ (テキスト、思考、または tool バッチ) が完了するたびに呼び出されるコールバックです。                                                                        |
-| `onDelta`     | `(args: { update }) => void \| Promise<void>` | 生の `InteractionUpdate` ごとに呼び出されるコールバックです。                                                                                     |
-| `local.force` | `boolean`                                     | ローカル エージェントのみ。デフォルトは `false` です。このメッセージを開始する前に、停止したままのアクティブな run を終了させます。Cloud ではサーバー側で `409 agent_busy` が返されるため、同等の仕組みは不要です。 |
+| プロパティ | 型 | 説明 |
+| --- | --- | --- |
+| `model` | `ModelSelection` | 送信ごとのモデル上書き設定です。省略した場合は `agent.model` を使用します。継続適用: 送信が成功すると `agent.model` が更新されます。 |
+| `mcpServers` | `Record<string, McpServerConfig>` | インラインの MCP server 定義です。この実行では、作成時に設定した server を完全に置き換えます。 |
+| `onStep` | `(args: { step }) => void \| Promise<void>` | 各会話ステップ (テキスト、思考、または tool バッチ) が完了するたびに呼び出されるコールバックです。 |
+| `onDelta` | `(args: { update }) => void \| Promise<void>` | 生の `InteractionUpdate` ごとに呼び出されるコールバックです。 |
+| `local.force` | `boolean` | ローカル エージェントのみ。デフォルトは `false` です。このメッセージを開始する前に、停止したままのアクティブな run を終了させます。Cloud ではサーバー側で `409 agent_busy` が返されるため、同等の仕組みは不要です。 |
 
 ***
 
@@ -455,16 +455,16 @@ type SDKMessage =
   | SDKRequestMessage;
 ```
 
-| `type`        | 説明                                                               | 主なフィールド                                                       |
-| :------------ | :--------------------------------------------------------------- | :------------------------------------------------------------ |
-| `"system"`    | 初期化メタデータ。実行の開始時に一度だけ出力されます。                                      | `subtype?` (`"init"`), `model?`, `tools?`                     |
-| `"user"`      | この実行におけるユーザープロンプトのエコー。                                           | `message.content: TextBlock[]`                                |
-| `"assistant"` | モデルのテキスト出力。                                                      | `message.content: (TextBlock \| ToolUseBlock)[]`              |
-| `"thinking"`  | 思考内容。                                                            | `text`, `thinking_duration_ms?`                               |
+| `type` | 説明 | 主なフィールド |
+| --- | --- | --- |
+| `"system"` | 初期化メタデータ。実行の開始時に一度だけ出力されます。 | `subtype?` (`"init"`), `model?`, `tools?` |
+| `"user"` | この実行におけるユーザープロンプトのエコー。 | `message.content: TextBlock[]` |
+| `"assistant"` | モデルのテキスト出力。 | `message.content: (TextBlock \| ToolUseBlock)[]` |
+| `"thinking"` | 思考内容。 | `text`, `thinking_duration_ms?` |
 | `"tool_call"` | ツール呼び出しのライフサイクル。開始時に `args` とともに出力され、完了時に `result` とともに再度出力されます。 | `call_id`, `name`, `status`, `args?`, `result?`, `truncated?` |
-| `"status"`    | クラウド実行のライフサイクル遷移。                                                | `status`, `message?`                                          |
-| `"task"`      | タスクレベルのマイルストーンと要約。                                               | `status?`, `text?`                                            |
-| `"request"`   | ユーザー入力または承認を待機中。                                                 | `request_id`                                                  |
+| `"status"` | クラウド実行のライフサイクル遷移。 | `status`, `message?` |
+| `"task"` | タスクレベルのマイルストーンと要約。 | `status?`, `text?` |
+| `"request"` | ユーザー入力または承認を待機中。 | `request_id` |
 
 結果データ (最終テキスト、モデル、所要時間、git メタデータ) は、ストリーム完了後に `Run` オブジェクトに格納されます。読み取るには `run.wait()` を使用します。
 
@@ -1126,35 +1126,35 @@ await agent[Symbol.asyncDispose]();
 
 ### AgentOptions
 
-| プロパティ        | 型                                                                                                       | デフォルト                                    | 説明                                                                                                            |
-| :----------- | :------------------------------------------------------------------------------------------------------ | :--------------------------------------- | :------------------------------------------------------------------------------------------------------------ |
-| `model`      | `ModelSelection`                                                                                        | ローカルでは必須。Cloud ではサーバーで解決されたデフォルトにフォールバック | 使用するモデル。`ModelSelection`を参照してください。             |
-| `apiKey`     | `string`                                                                                                | `CURSOR_API_KEY` env                     | ユーザー API キーまたはサービスアカウントキー。チーム Admin キーはまだサポートされていません。                                                         |
-| `name`       | `string`                                                                                                | 自動生成                                     | `Agent.list()` / `Agent.get()` で `title` として表示される、人が読めるエージェント名。                                               |
-| `local`      | `{ cwd?: string \| string[]; settingSources?: SettingSource[]; sandboxOptions?: { enabled: boolean } }` |                                          | ローカルエージェント の設定。`settingSources` は環境設定レイヤー (`"project"`、`"user"`、`"team"`、`"mdm"`、`"plugins"`、`"all"`) を選択します。 |
-| `cloud`      | `CloudOptions`                                                                                          |                                          | Cloud Agent の設定。                                                                                              |
-| `mcpServers` | `Record<string, McpServerConfig>`                                                                       |                                          | インライン MCP サーバー定義。                                                                                             |
-| `agents`     | `Record<string, AgentDefinition>`                                                                       |                                          | サブエージェント定義。                                                                                                   |
-| `agentId`    | `string`                                                                                                | 自動生成                                     | 永続的なエージェント ID。invocation 間で安定した ID を維持するには指定してください。                                                           |
+| プロパティ | 型 | デフォルト | 説明 |
+| --- | --- | --- | --- |
+| `model` | `ModelSelection` | ローカルでは必須。Cloud ではサーバーで解決されたデフォルトにフォールバック | 使用するモデル。`ModelSelection`を参照してください。 |
+| `apiKey` | `string` | `CURSOR_API_KEY` env | ユーザー API キーまたはサービスアカウントキー。チーム Admin キーはまだサポートされていません。 |
+| `name` | `string` | 自動生成 | `Agent.list()` / `Agent.get()` で `title` として表示される、人が読めるエージェント名。 |
+| `local` | `{ cwd?: string \| string[]; settingSources?: SettingSource[]; sandboxOptions?: { enabled: boolean } }` |  | ローカルエージェント の設定。`settingSources` は環境設定レイヤー (`"project"`、`"user"`、`"team"`、`"mdm"`、`"plugins"`、`"all"`) を選択します。 |
+| `cloud` | `CloudOptions` |  | Cloud Agent の設定。 |
+| `mcpServers` | `Record<string, McpServerConfig>` |  | インライン MCP サーバー定義。 |
+| `agents` | `Record<string, AgentDefinition>` |  | サブエージェント定義。 |
+| `agentId` | `string` | 自動生成 | 永続的なエージェント ID。invocation 間で安定した ID を維持するには指定してください。 |
 
 ### CloudOptions
 
-| プロパティ| 型| デフォルト | 説明 |
-| :-------------------- | :---------------------------------------------------------------------------------------------------------- | :------------------ | :----------------------------------------------------------------------------------------------------------------------------------------- |
-| `env`                 | `{ type: "cloud"; name?: string } \| { type: "pool"; name?: string } \| { type: "machine"; name?: string }` | `{ type: "cloud" }` | 実行環境。`cloud` は Cursor がホストする VM を使用します。`pool` と `machine` は セルフホスト型プールを対象とします。 |
-| `repos`               | `Array<{ url: string; startingRef?: string; prUrl?: string }>`                                              |                     | VM にクローンするリポジトリ。既存の PR にエージェントを紐付けるには、`prUrl` を渡します。                                                                                       |
-| `workOnCurrentBranch` | `boolean`                                                                                                   | `false`             | 新しいブランチではなく、既存のブランチにコミットをプッシュします。                                                                                                          |
-| `autoCreatePR`        | `boolean`                                                                                                   | `false`             | 実行完了時に PR を作成します。                                                                                                                          |
-| `skipReviewerRequest` | `boolean`                                                                                                   | `false`             | 呼び出し元のユーザーを PR のレビュアーとして依頼する処理をスキップします。                                                                                                    |
+| プロパティ | 型 | デフォルト | 説明 |
+| --- | --- | --- | --- |
+| `env` | `{ type: "cloud"; name?: string } \| { type: "pool"; name?: string } \| { type: "machine"; name?: string }` | `{ type: "cloud" }` | 実行環境。`cloud` は Cursor がホストする VM を使用します。`pool` と `machine` は セルフホスト型プールを対象とします。 |
+| `repos` | `Array<{ url: string; startingRef?: string; prUrl?: string }>` |  | VM にクローンするリポジトリ。既存の PR にエージェントを紐付けるには、`prUrl` を渡します。 |
+| `workOnCurrentBranch` | `boolean` | `false` | 新しいブランチではなく、既存のブランチにコミットをプッシュします。 |
+| `autoCreatePR` | `boolean` | `false` | 実行完了時に PR を作成します。 |
+| `skipReviewerRequest` | `boolean` | `false` | 呼び出し元のユーザーを PR のレビュアーとして依頼する処理をスキップします。 |
 
 ### AgentDefinition
 
-| Property      | Type                                               | Default     | Description                                                     |
-| :------------ | :------------------------------------------------- | :---------- | :-------------------------------------------------------------- |
-| `description` | `string`                                           | *required*  | このサブエージェントを使用する場面。親エージェントに表示され、いつ起動すべきかを判断するために使われます。           |
-| `prompt`      | `string`                                           | *required*  | サブエージェント用のシステムプロンプト。                                            |
-| `model`       | `ModelSelection \| "inherit"`                      | `"inherit"` | モデルの上書き設定。親の選択を使用するには `"inherit"` を指定します。                       |
-| `mcpServers`  | `Array<string \| Record<string, McpServerConfig>>` |             | このサブエージェントで利用できる MCP サーバー。名前には親の `mcpServers` で定義されたサーバーを指定します。 |
+| Property | Type | Default | Description |
+| --- | --- | --- | --- |
+| `description` | `string` | *required* | このサブエージェントを使用する場面。親エージェントに表示され、いつ起動すべきかを判断するために使われます。 |
+| `prompt` | `string` | *required* | サブエージェント用のシステムプロンプト。 |
+| `model` | `ModelSelection \| "inherit"` | `"inherit"` | モデルの上書き設定。親の選択を使用するには `"inherit"` を指定します。 |
+| `mcpServers` | `Array<string \| Record<string, McpServerConfig>>` |  | このサブエージェントで利用できる MCP サーバー。名前には親の `mcpServers` で定義されたサーバーを指定します。 |
 
 ### ModelSelection
 
@@ -1239,14 +1239,14 @@ type SettingSource =
 
 ローカルエージェントがディスク上のどの設定レイヤーを読み込むかを制御します。Cloud Agent では常に `project` / `team` / `plugins` が読み込まれ、このフィールドは無視されます。
 
-| 値           | ソース                  |
-| :---------- | :------------------- |
+| 値 | ソース |
+| --- | --- |
 | `"project"` | ワークスペース内の `.cursor/` |
-| `"user"`    | `~/.cursor/`         |
-| `"team"`    | ダッシュボードから同期されるチーム設定  |
-| `"mdm"`     | MDM で管理されるエンタープライズ設定 |
-| `"plugins"` | プラグインによって提供される設定     |
-| `"all"`     | 上記すべての簡略記法           |
+| `"user"` | `~/.cursor/` |
+| `"team"` | ダッシュボードから同期されるチーム設定 |
+| `"mdm"` | MDM で管理されるエンタープライズ設定 |
+| `"plugins"` | プラグインによって提供される設定 |
+| `"all"` | 上記すべての簡略記法 |
 
 ### ListResult
 
@@ -1272,14 +1272,14 @@ class CursorAgentError extends Error {
 }
 ```
 
-| エラー                            | 発生する状況                                          |
-| :----------------------------- | :---------------------------------------------- |
-| `AuthenticationError`          | API キー が無効、未ログイン、または権限不足。                       |
-| `RateLimitError`               | リクエストが多すぎる、または利用制限を超過。                          |
-| `ConfigurationError`           | モデルが無効、またはリクエスト パラメータが不正。                       |
+| エラー | 発生する状況 |
+| --- | --- |
+| `AuthenticationError` | API キー が無効、未ログイン、または権限不足。 |
+| `RateLimitError` | リクエストが多すぎる、または利用制限を超過。 |
+| `ConfigurationError` | モデルが無効、またはリクエスト パラメータが不正。 |
 | `IntegrationNotConnectedError` | SCMプロバイダが接続されていないリポジトリに対して Cloud Agent を作成した場合。 |
-| `NetworkError`                 | サービスを利用できない、またはタイムアウト。                          |
-| `UnknownAgentError`            | サーバーまたは実行時の未分類エラー全般。                            |
+| `NetworkError` | サービスを利用できない、またはタイムアウト。 |
+| `UnknownAgentError` | サーバーまたは実行時の未分類エラー全般。 |
 
 ### IntegrationNotConnectedError
 
