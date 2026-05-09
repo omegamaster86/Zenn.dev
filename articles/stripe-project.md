@@ -9,8 +9,6 @@ publication_name: "genai"
 ---
 # 初めに
 
-### まず何がどうなる？
-
 Stripe Project（Stripe CLI の `projects` プラグインとワークフロー）を入れると、**サードパーティのアカウント作成からローカルの環境変数まで**の進め方が変わります。ここでは「実際の開発で手が触れる部分」に絞って対比します。
 
 | 開発の場面 | 使用前（Stripe Project を使わない） | 使用後（Stripe Project を使う） |
@@ -69,3 +67,202 @@ stripe plugin upgrade projects
 :::message
 現在の Stripe CLI バージョンが Projects プラグインをサポートしていない場合は、Stripe CLI をアップグレードしてください。
 :::
+入っているか確認する場合次のコマンドを実行
+```
+stripe plugin list
+```
+
+プロジェクト初期化（ルートで）
+```
+stripe projects init
+```
+公開してはいけない系があったので、スクショは控えますね…
+その後こんなファイルが作成されています。
+![](/images/stripe-project/5.png)
+![](/images/stripe-project/6.png)
+
+使えるプロバイダを見てみましょう。
+```
+stripe projects catalog
+```
+実行結果の一例です。カタログの内容はアップデートで変わります。
+
+#### HOSTING
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| cloudflare/workers | Free | Workers のビルド・デプロイ・スケール |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+| huggingface/platform | Free & Paid | Hugging Face プラットフォームへのアクセス |
+| netlify/project | Free | Netlify がホストするサイト |
+| railway/hosting | Free | GitHub リポジトリから Railway にデプロイ |
+| render/static-site | Free | 静的サイト向け無料ホスティング |
+| render/web-service | Free & Paid | マネージド Web サービス |
+| vercel/project | Free & Paid | Vercel にデプロイしたアプリケーション |
+
+#### DATABASE
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| cloudflare/d1 | Free | サーバーレス SQL（D1） |
+| cloudflare/hyperdrive | Free | Workers から既存 DB への接続 |
+| flyio/mpg | Paid | Fly.io のマネージド PostgreSQL |
+| neon/postgres | Free | 認証統合済みの Neon Postgres |
+| planetscale/mysql | Paid | マネージド MySQL |
+| planetscale/postgresql | Paid | マネージド PostgreSQL |
+| railway/mongo | Free | Railway 上の MongoDB |
+| railway/postgres | Free | Railway 上の PostgreSQL |
+| railway/redis | Free | Railway 上の Redis（キャッシュ） |
+| render/postgres | Free & Paid | Render のマネージド PostgreSQL |
+| supabase/project | Free | DB・認証などを含む Supabase プロジェクト |
+| turso/database | Free & Paid | SQLite ベースの Turso DB |
+| upstash/redis | Free & Paid | serverless Redis |
+| upstash/vector | Free & Paid | serverless Vector |
+
+#### AI
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| algolia/application | Free & Paid | Algolia の検索・ディスカバリー |
+| amplitude/analytics | Free | Amplitude のプロダクトアナリティクス |
+| cloudflare/workers-ai | Free | Workers 上で AI モデルを実行 |
+| elevenlabs/tts | Free | ElevenLabs の Text-to-Speech API |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+| huggingface/bucket | Free & Paid | Hugging Face のストレージバケット |
+| huggingface/platform | Free & Paid | Hugging Face プラットフォームへのアクセス |
+| openrouter/api | Free & Paid | OpenRouter でモデルを比較・利用 |
+| posthog/analytics | Free | PostHog のプロダクトアナリティクス |
+| upstash/vector | Free & Paid | serverless Vector |
+
+#### ANALYTICS
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| amplitude/analytics | Free | Amplitude のプロダクトアナリティクス |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+| mixpanel/analytics | Free | Mixpanel のプロダクトアナリティクス |
+| posthog/analytics | Free | PostHog のプロダクトアナリティクス |
+
+#### COMMUNICATIONS
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| agentmail/api | Free & Paid | AgentMail API（受信トレイの作成など） |
+| upstash/qstash | Free & Paid | Upstash QStash（メッセージング） |
+
+#### QUEUE
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| cloudflare/queues | Free | メッセージの送受信 |
+| inngest/app | Free & Paid | Inngest アプリのデプロイ |
+
+#### BROWSER
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| browserbase/project | Free & Paid | Browserbase プロジェクト（ブラウザ自動化） |
+| cloudflare/browser-run | Free | Cloudflare 上のヘッドレスブラウザ |
+
+#### AUTH
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| auth0/client | Free & Paid | Auth0（モバイル・Web・IoT クライアント） |
+| clerk/auth | Free & Paid | Clerk 認証 |
+| neon/postgres | Free | 認証統合済み Neon Postgres |
+| privy/app | Free & Paid | Privy（認証・ウォレット） |
+| supabase/project | Free | DB・認証などを含む Supabase プロジェクト |
+| workos/auth | Free & Paid | WorkOS AuthKit |
+
+#### CACHE
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| cloudflare/kv | Free | Cloudflare KV |
+| railway/redis | Free | Railway 上の Redis |
+| upstash/redis | Free & Paid | serverless Redis |
+
+#### CDN
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+
+#### CI
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+
+#### FEATURE_FLAGS
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| amplitude/analytics | Free | Amplitude（フィーチャーフラグ用途も） |
+| posthog/analytics | Free | PostHog（フィーチャーフラグ用途も） |
+
+#### OBSERVABILITY
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+| sentry/project | Free | Sentry（エラー追跡など） |
+
+#### PAYMENTS
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| privy/app | Free & Paid | Privy（認証・ウォレット） |
+
+#### SEARCH
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| algolia/application | Free & Paid | Algolia の検索・ディスカバリー |
+| firecrawl/api | Free | Firecrawl API（検索・スクレイピング） |
+| upstash/search | Free & Paid | Upstash の全文検索 |
+
+#### STORAGE
+
+| サービス | プラン | 概要 |
+| --- | --- | --- |
+| gitlab/project | Free | CI/CD 付き GitLab プロジェクト |
+| huggingface/bucket | Free & Paid | Hugging Face のストレージバケット |
+| railway/bucket | Free | Railway の S3 互換オブジェクトストレージ |
+| supabase/project | Free | DB・ストレージ等を含む Supabase プロジェクト |
+    workos/auth             ● Free & Paid  WorkOS AuthKit — drop-in a...
+
+CACHE
+    cloudflare/kv           ● Free         Store and read key-value d...
+    railway/redis           ● Free         Managed Redis cache on Rai...
+    upstash/redis           ● Free & Paid  Upstash Redis - Serverless...
+
+CDN
+    gitlab/project          ● Free         GitLab project with built-...
+
+CI
+    gitlab/project          ● Free         GitLab project with built-...
+
+FEATURE_FLAGS
+    amplitude/analytics     ● Free         Amplitude Analytics - Prod...
+    posthog/analytics       ● Free         PostHog — product analytic...
+
+OBSERVABILITY
+    gitlab/project          ● Free         GitLab project with built-...
+    sentry/project          ● Free         Sentry project -- error tr...
+
+PAYMENTS
+    privy/app               ● Free & Paid  Auth and wallet functional...
+
+SEARCH
+    algolia/application     ● Free & Paid  Algolia Search & Discovery...
+    firecrawl/api           ● Free         Firecrawl API — search, sc...
+    upstash/search          ● Free & Paid  Upstash Search - Full-text...
+
+STORAGE
+    gitlab/project          ● Free         GitLab project with built-...
+    huggingface/bucket      ● Free & Paid  Create a Storage Bucket fo...
+    railway/bucket          ● Free         S3-compatible object stora...
+    supabase/project        ● Free         A Supabase project with da...
+
