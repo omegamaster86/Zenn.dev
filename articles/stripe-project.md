@@ -242,3 +242,17 @@ stripe projects add supabase/project
 `stripe projects add vercel/project`を実行後こんな感じになります。
 ![](/images/stripe-project/7.png)
 ![](/images/stripe-project/8.png)
+```
+stripe projects status
+```
+で実際に接続できているか確認できます。
+![](/images/stripe-project/10.png)
+```
+stripe projects env
+```
+では「Stripe Projects が把握している環境変数（認証情報の束）の一覧」が CLI で表示されている状態です。
+![](/images/stripe-project/11.png)
+
+`stripe projects env --pull` について
+Next steps にある env --pull は、Vault とローカルの .env などを Projects の正として同期・取得するためのコマンドです。別マシンにした／.env を消した／最新に再取得したいときなどに使うイメージです。すでに add のときに .env に注入済みなら、必須ではないことも多いですが、「手元のファイルを確実に揃えたい」ときに実行します。
+
