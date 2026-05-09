@@ -239,3 +239,6 @@ stripe projects catalog
 stripe projects add vercel/project
 stripe projects add supabase/project
 ```
+`stripe projects add vercel/project`を実行後こんな感じになります。
+![](/images/stripe-project/7.png)
+![](/images/stripe-project/8.png)
