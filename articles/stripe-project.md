@@ -1,10 +1,10 @@
 ---
 title: "Stripe Projectを試してみたんじゃ"
-emoji: "🌕"
+emoji: "🏃‍♀️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Stripe","Stripe Project","AI","AI駆動開発","CLI"]
-published: false
-# published_at: 2026-05-11 09:30
+published: true
+published_at:2026-05-10 11:30
 publication_name: "genai"
 ---
 # 初めに
@@ -301,6 +301,11 @@ vercel-project
 # 最後に
 気になった方はぜひ使用してみてください。
 正直、リモートの環境変数を自動で反映してくれるとよかったのですが、環境変数の共通化だけが目的なら使わなくても良さそうですね…
+
+とはいえ、**次のようなときは Stripe Projects を検討する価値がある**と感じました。
+- **連携先の料金や請求の入口を Stripe 側に寄せて把握したい**とき。各プロバイダの請求画面を個別に追いかける運用と比べ、誰がどの環境でどのプランに乗っているかを整理しやすい（`stripe projects billing add` など、請求まわりは公式の案内に従う前提）。
+- **dev / staging / production を別プロジェクトに分け、環境と課金の境界も切りたい**とき。公式でも環境ごとの分離が推奨されています。
+一方で、**ホスティング先の環境変数を Projects が自動で書き換えてほしい**、あるいは **既存のホスト側のシークレットストアだけを真実の源泉にしたい**だけなら、別の仕組みの方が主役になりやすいです。
 
 公式はこちらに貼っておきます。
 https://docs.stripe.com/projects
