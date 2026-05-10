@@ -4,7 +4,7 @@ emoji: "🏃‍♀️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Stripe","Stripe Project","AI","AI駆動開発","CLI"]
 published: true
-published_at:2026-05-10 11:30
+published_at: 2026-05-10 12:00
 publication_name: "genai"
 ---
 # 初めに
