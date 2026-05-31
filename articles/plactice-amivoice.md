@@ -1,8 +1,8 @@
 ---
-title: "AmiVoiceとCursor SDKで音声情報を取得、要約するんじゃ"
+title: "AmiVoiceとLLMで音声情報を取得、要約するんじゃ"
 emoji: "🎤"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["AmiVoice","Cursor","Cursor SDK","AI駆動開発"]
+topics: ["AmiVoice","LLM","AI駆動開発"]
 published: false
 # published_at: 2026-05-08 09:30
 publication_name: "genai"
@@ -10,7 +10,7 @@ publication_name: "genai"
 # 初めに
 この記事はZennfes Spring 2026「音声認識AmiVoice APIと生成AIで作る音声体験」エントリ記事です。
 
-AmiVoice API と Cursor SDK を組み合わせて「音声を取り込み → テキスト化 → 要約」する流れを作る前提で書いていきます。まずは同じ **Speech-to-Text（音声認識）** の領域で、AmiVoice と並んで検討される製品・サービスを整理しておきます。
+AmiVoice API と LLM を組み合わせて「音声を取り込み → テキスト化 → 要約」する流れを作る前提で書いていきます。まずは同じ **Speech-to-Text（音声認識）** の領域で、AmiVoice と並んで検討される製品・サービスを整理しておきます。
 そしておそらく多くの方はCursor、Claude Code、Codex、Devin等を使用しながら開発していると勝手に思っているので、新しいAPIを試す時にもうドキュメントを1から読むこともないかなと思っています。なのでここではAIに指示出ししながら実装して、エラーになったことを記載していきます。
 
 # `received illegal service authorization`エラー
@@ -86,6 +86,49 @@ curl ... -F u={APIキー} -F d=-a-general -F a=@test.wav
 # ❌ u が a より後 → illegal service authorization
 curl ... -F d=-a-general -F a=@test.wav -F u={APIキー}
 ```
+
+### 修正前のコード例（問題あり）
+
+BFF から AmiVoice を呼ぶ処理で、次のように **`a` のあとに `d` を付けている** と、`d` は無視されます。環境によっては認証まわりも意図どおり効かず、先のエラーになります。
+
+```typescript
+const form = new FormData();
+form.append("u", apiKey);
+form.append("a", blob, "audio.webm");
+form.append("d", "-a-general"); // ❌ a より後
+
+const response = await fetch("https://acp-api.amivoice.com/v1/recognize", {
+  method: "POST",
+  body: form,
+});
+```
+
+### 修正後のコード例
+
+**`a` を最後に append** します。キーは `.trim()` しておくと `.env` の改行混入を防げます。
+
+```typescript
+const apiKey = process.env.AMIVOICE_API_KEY?.trim();
+if (!apiKey) {
+  throw new Error("AMIVOICE_API_KEY が設定されていません");
+}
+
+const engine = "-a-general";
+const blob = new Blob([new Uint8Array(audioBuffer)], {
+  type: mimeType, // 例: audio/webm
+});
+
+const form = new FormData();
+form.append("u", apiKey);
+form.append("d", engine);
+form.append("a", blob, "audio.webm"); // ✅ 必ず最後
+
+const response = await fetch("https://acp-api.amivoice.com/v1/recognize", {
+  method: "POST",
+  body: form,
+});
+```
+
 
 # 他製品紹介
 最後にAmiVoice と同じく **音声をテキストに変換する API / SDK / サービスを紹介させてください**、大きく次の4系統に分かれます。
