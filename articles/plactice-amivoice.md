@@ -129,6 +129,277 @@ const response = await fetch("https://acp-api.amivoice.com/v1/recognize", {
 });
 ```
 
+# 音声認識履歴を LLM で要約する — Next.js BFF + metadata_json キャッシュ
+AmiVoice で音声認識したテキストを DB に保存し、履歴詳細画面から **OpenAI 互換 API（Gemini / OpenAI など）で要約** する機能の実装メモです。フェーズ1の英→日翻訳と同じ `LLM_*` 環境変数を流用し、**専用カラムを増やさず `metadata_json` にキャッシュ** する構成にしています。
+
+## 機能概要
+
+| 項目 | 内容 |
+| ---- | ---- |
+| 画面 | `/speech/history/{id}`（変換履歴詳細） |
+| 操作 | 「要約する」ボタンをクリック |
+| 要約対象 | `final_text`（表示・保存用の最終テキスト） |
+| LLM | OpenAI 互換 API（Gemini / OpenAI など） |
+| 保存先 | `t_transcription_record.metadata_json`（JSONB） |
+
+## 処理フロー
+
+```mermaid
+sequenceDiagram
+  participant User as ユーザー
+  participant UI as SummarySection
+  participant API as POST /summarize
+  participant DB as Supabase
+  participant LLM as OpenAI 互換 API
+
+  User->>UI: 「要約する」クリック
+  UI->>API: POST（Body なし）
+  API->>DB: getTranscriptionRecordById
+  alt metadata_json.summary あり
+    API-->>UI: キャッシュ返却
+  else 未要約
+    API->>LLM: chat/completions
+    LLM-->>API: 要約テキスト
+    API->>DB: updateTranscriptionSummary
+    API-->>UI: summary + summarizedAt
+  end
+  UI->>User: 要約表示
+```
+
+要点は次の 3 点です。
+
+1. **BFF 経由** — クライアントは `/api/speech/history/{id}/summarize` を叩くだけ。API キーはサーバー側のみ。
+2. **キャッシュ優先** — `metadata_json.summary` があれば LLM を呼ばない。
+3. **翻訳と同型** — `llm-summarizer.ts` は `llm-translator.ts` と同じ fetch パターン。
+
+## 環境変数
+
+フェーズ1（英→日翻訳）と同じ `LLM_*` を流用します。**追加の env は不要** です。
+
+| 変数 | 用途 |
+| ---- | ---- |
+| `LLM_API_KEY` | API キー（Gemini は [Google AI Studio](https://aistudio.google.com/) から取得） |
+| `LLM_API_BASE_URL` | OpenAI 互換ベース URL |
+| `LLM_MODEL` | モデル名 |
+
+## 実装の構成
+
+| 役割 | 配置例 |
+| ---- | ------ |
+| LLM アダプター | `features/speech/adapters/llm-summarizer.ts` |
+| DB 更新 | `features/speech/adapters/transcription-repository.ts` |
+| API Route | `app/api/speech/history/[id]/summarize/route.ts` |
+| UI（Client） | `app/(dashboard)/speech/history/[id]/_components/SummarySection.tsx` |
+| 詳細ページ | `app/(dashboard)/speech/history/[id]/page.tsx` |
+
+### LLM アダプター
+
+翻訳用アダプターと同型の fetch 実装です。エンドポイントは `${LLM_API_BASE_URL}/chat/completions`、temperature は `0.2` に固定しています。
+
+```typescript
+const MAX_INPUT_LENGTH = 8000;
+
+export async function summarizeText(text: string): Promise<string> {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new LlmSummarizationError("要約対象テキストが空です");
+  }
+
+  const input =
+    trimmed.length > MAX_INPUT_LENGTH
+      ? trimmed.slice(0, MAX_INPUT_LENGTH)
+      : trimmed;
+
+  const apiKey = process.env.LLM_API_KEY;
+  const baseUrl =
+    process.env.LLM_API_BASE_URL?.replace(/\/$/, "") ??
+    "https://api.openai.com/v1";
+  const model = process.env.LLM_MODEL ?? "gpt-4o-mini";
+
+  if (!apiKey) {
+    throw new LlmSummarizationError("LLM_API_KEY が設定されていません");
+  }
+
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content:
+            "音声認識テキストを日本語で3〜5行に要約してください。箇条書き可。説明や前置きは不要です。",
+        },
+        { role: "user", content: input },
+      ],
+      temperature: 0.2,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new LlmSummarizationError(
+      `要約 API がエラーを返しました (${response.status})`,
+    );
+  }
+
+  const json = (await response.json()) as {
+    choices?: Array<{ message?: { content?: string } }>;
+  };
+
+  const summary = json.choices?.[0]?.message?.content?.trim();
+  if (!summary) {
+    throw new LlmSummarizationError("要約結果が空です");
+  }
+
+  return summary;
+}
+```
+
+- 入力が空 → `LlmSummarizationError`
+- 8000 文字超 → 先頭 8000 文字に truncate（トークン超過防止）
+
+### Route Handler（キャッシュ返却）
+
+POST 時に DB からレコードを取得し、**既存の要約があれば LLM を呼ばず** 返します。
+
+```typescript
+export async function POST(_request: Request, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+    const parsed = RecordIdParamsSchema.safeParse({ id });
+
+    if (!parsed.success) {
+      return jsonError("ID が不正です", 400);
+    }
+
+    const record = await getTranscriptionRecordById(parsed.data.id);
+
+    if (!record) {
+      return jsonError("レコードが見つかりません", 404);
+    }
+
+    const cached = readCachedSummary(record.metadata_json);
+    if (cached) {
+      return Response.json({
+        summary: cached.summary,
+        summarizedAt: cached.summarizedAt,
+        recordId: record.id,
+      });
+    }
+
+    const summary = await summarizeText(record.final_text);
+    const updated = await updateTranscriptionSummary(record.id, summary);
+
+    return Response.json({
+      summary,
+      summarizedAt: new Date().toISOString(),
+      recordId: updated.id,
+    });
+  } catch (error) {
+    if (error instanceof LlmSummarizationError) {
+      return jsonError(error.message, 502);
+    }
+    return jsonError("要約処理に失敗しました", 500);
+  }
+}
+```
+
+### DB 保存（metadata_json マージ）
+
+専用カラムは追加せず、既存の `metadata_json` にマージします。
+
+```typescript
+const metadataJson: Record<string, unknown> = {
+  ...(existing.metadata_json ?? {}),
+  summary,
+  summarizedAt: new Date().toISOString(),
+};
+```
+
+保存形式:
+
+```json
+{
+  "summary": "要約テキスト",
+  "summarizedAt": "2026-05-31T12:00:00.000Z"
+}
+```
+
+- 2 回目以降の POST は LLM を呼ばず、保存済み `summary` を返します（再生成ボタンは未実装）。
+- ページ再読み込み時は Server Component が `metadata_json.summary` を読み、Client Component に `initialSummary` として渡します。
+
+## API 仕様
+
+### `POST /api/speech/history/{id}/summarize`
+
+**リクエスト**
+
+- Body なし
+- `id`: UUID（パスパラメータ）
+
+**成功レスポンス（200）**
+
+```json
+{
+  "summary": "・要点1\n・要点2",
+  "summarizedAt": "2026-05-31T12:00:00.000Z",
+  "recordId": "019..."
+}
+```
+
+**エラー**
+
+| ステータス | 条件 |
+| ---------- | ---- |
+| 400 | ID が UUID 形式でない |
+| 404 | レコードが存在しない |
+| 502 | LLM エラー（キー未設定、API 失敗、結果が空など） |
+| 500 | その他のサーバーエラー |
+
+502 時はレスポンス JSON の `error` フィールドにメッセージが入ります。
+
+## UI 仕様
+
+詳細ページの「最終テキスト」直下に「要約」セクションを配置しています。
+
+| 状態 | 表示 |
+| ---- | ---- |
+| 未要約 | 「要約する」ボタン |
+| 要約中 | ボタン disabled + 「要約中…」 |
+| 成功 | 要約テキスト（border 付きブロック） |
+| 失敗 | 赤文字のエラーメッセージ |
+| 保存済み | 要約テキストのみ（ボタン非表示） |
+
+クライアントからの呼び出し例:
+
+```typescript
+const res = await fetch(`/api/speech/history/${recordId}/summarize`, {
+  method: "POST",
+});
+const data = await res.json();
+// data.summary
+```
+
+Client Component 側では `initialSummary` を state の初期値にし、要約済みならボタンを出さないようにしています。
+
+```typescript
+export function SummarySection({
+  recordId,
+  initialSummary,
+}: SummarySectionProps) {
+  const [summary, setSummary] = useState<string | null>(
+    initialSummary ?? null,
+  );
+  // ...
+}
+```
+
+要約機能は **既存の翻訳インフラをそのまま流用** し、DB スキーマを増やさず `metadata_json` に結果を蓄積する、デモ向けの最小構成です。本番で再生成や要約バージョン管理が必要になったら、専用テーブルや `summaryVersion` フィールドの追加を検討した方が良いですね。
+
 
 # 他製品紹介
 最後にAmiVoice と同じく **音声をテキストに変換する API / SDK / サービスを紹介させてください**、大きく次の4系統に分かれます。
