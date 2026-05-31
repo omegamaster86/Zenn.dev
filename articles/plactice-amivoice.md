@@ -2,26 +2,117 @@
 title: "AmiVoiceとLLMで音声情報を取得、要約するんじゃ"
 emoji: "🎤"
 type: "tech" # tech: 技術記事 / idea: アイデア
-topics: ["AmiVoice","LLM","AI駆動開発"]
-published: false
-# published_at: 2026-05-08 09:30
+topics: ["AmiVoice","LLM","AI駆動開発","音声認識","amivoice"]
+published: true
+published_at: 2026-05-31 18:30
 publication_name: "genai"
 ---
 # 初めに
 この記事はZennfes Spring 2026「音声認識AmiVoice APIと生成AIで作る音声体験」エントリ記事です。
 
-AmiVoice API と LLM を組み合わせて「音声を取り込み → テキスト化 → 要約」する流れを作る前提で書いていきます。まずは同じ **Speech-to-Text（音声認識）** の領域で、AmiVoice と並んで検討される製品・サービスを整理しておきます。
-そしておそらく多くの方はCursor、Claude Code、Codex、Devin等を使用しながら開発していると勝手に思っているので、新しいAPIを試す時にもうドキュメントを1から読むこともないかなと思っています。なのでここではAIに指示出ししながら実装して、エラーになったことを記載していきます。
+AmiVoice API と LLM を組み合わせて「録音 → 文字起こし → 要約」するデモを Next.js で作りました。AmiVoice 連携で認証エラーにハマったのでその解決方法も共有します。
 
-# `received illegal service authorization`エラー
-AmiVoice API の同期 HTTP を Next.js の Route Handler（BFF）から `fetch` + `FormData` で呼んだとき、**curl では成功するのにアプリだけ認証エラー**になる、という話です。
+- **対象読者:** AmiVoice API を BFF から初めて触る方
+- **環境:** Next.js App Router / TypeScript / Supabase
 
-## 想定読者・環境
+## 記事の構成
 
-- AmiVoice API をサーバー側（BFF）から呼びたい方
-- Next.js App Router + `fetch` + `FormData` で `/v1/recognize` に POST している方
-- ブラウザ録音（WebM）をそのまま API に渡している構成
-本記事のコード例は TypeScript / Node.js 前提です。他言語でも **「マルチパートの最後に音声を置く」** ルールは同じです。
+1. [作ったもの](#作ったもの-音声--文字起こし--要約) — 全体像と文字起こしの正常系
+2. [AmiVoice 連携でハマった点](#amivoice-連携でハマった-multipart-の順序) — `illegal service authorization` の原因と修正
+3. [LLM で要約する](#音声認識履歴を-llm-で要約する--nextjs-bff--metadata_json-キャッシュ) — 履歴画面から要約
+4. [なぜ AmiVoice か](#なぜ-amivoice-か) — 他 STT とのざっくり比較
+
+# 作ったもの: 音声 → 文字起こし → 要約
+
+ブラウザで録音した音声を AmiVoice API でテキスト化し、履歴画面から LLM で要約するデモです。
+作成理由としては下記の３つが私のやりたいことだったので、これを機に作成してみました。
+- 対面商談で営業がなんと言ったか確認したい
+- 対面商談のメモを用件定義にも組み込みたい
+- エンジニアイベントで英語を日本語に翻訳したいし、まとめたい
+
+## アーキテクチャ
+
+```mermaid
+flowchart LR
+  Browser[ブラウザ録音] --> BFF1["POST /api/speech/transcribe"]
+  BFF1 --> AmiVoice[AmiVoice API]
+  AmiVoice --> DB[(Supabase)]
+  Browser --> BFF2["POST /api/speech/history/{id}/summarize"]
+  BFF2 --> LLM[OpenAI互換 API]
+  LLM --> DB
+```
+
+## 技術スタック
+
+| レイヤ | 技術 |
+|--------|------|
+| フロント | Next.js App Router + ブラウザ MediaRecorder |
+| BFF | Route Handler（API キーはサーバー側のみ） |
+| STT | AmiVoice 同期 HTTP `/v1/recognize` |
+| 生成AI | OpenAI 互換 `chat/completions` |
+| DB | Supabase（`t_transcription_record`） |
+
+## 環境変数（AmiVoice）
+
+| 変数 | 用途 |
+| ---- | ---- |
+| `AMIVOICE_API_KEY` | AmiVoice API キー（マイページから取得） |
+
+## 文字起こしの正常系
+
+ブラウザから `multipart/form-data` で音声 Blob を BFF に送り、BFF が AmiVoice 同期 HTTP を呼びます。**FormData は `u` → `d` → `a` の順**（`a` 以降のパラメータは無視される点に注意。[後述](#原因-multipart-の順序)）。
+
+### BFF（Route Handler）
+
+```typescript
+// app/api/speech/transcribe/route.ts（抜粋）
+const apiKey = process.env.AMIVOICE_API_KEY?.trim();
+if (!apiKey) {
+  return jsonError("AMIVOICE_API_KEY が設定されていません", 500);
+}
+
+const formData = await request.formData();
+const audio = formData.get("audio");
+if (!(audio instanceof Blob)) {
+  return jsonError("音声データがありません", 400);
+}
+
+const form = new FormData();
+form.append("u", apiKey);
+form.append("d", "-a-general");
+form.append("a", audio, "audio.webm"); // ✅ 必ず最後
+
+const response = await fetch("https://acp-api.amivoice.com/v1/recognize", {
+  method: "POST",
+  body: form,
+});
+
+const result = await response.json();
+// result.text を DB に保存して返却
+```
+
+### クライアント（録音 → 送信）
+
+```typescript
+// MediaRecorder で WebM を取得したあと
+const body = new FormData();
+body.append("audio", audioBlob, "recording.webm");
+
+const res = await fetch("/api/speech/transcribe", {
+  method: "POST",
+  body,
+});
+```
+
+AmiVoice から `text` が返れば `t_transcription_record.final_text` に保存し、履歴一覧・詳細画面から参照します。
+
+# AmiVoice 連携でハマった: multipart の順序
+
+[文字起こしの正常系](#文字起こしの正常系) を実装したあと、**curl では成功するのにアプリだけ認証エラー**になる事象に遭遇しました。
+
+## 想定読者
+
+AmiVoice API を Next.js BFF + `fetch` + `FormData` で `/v1/recognize` に POST している方。TypeScript / Node.js 前提ですが、他言語でも **「マルチパートの最後に音声を置く」** ルールは同じです。
 
 ## 症状
 
@@ -65,7 +156,7 @@ curl https://acp-api.amivoice.com/v1/nolog/recognize \
 `@/path/to/test.wav` のような**存在しないパス**を指定すると `(26)` で止まります。認証エラーとは別問題です。
 :::
 
-## 原因① multipart の順序（いちばん見落としがち）
+## 原因: multipart の順序
 
 [同期 HTTP インタフェース](https://docs.amivoice.com/amivoice-api/manual/sync-http-interface) には、次の注意があります。
 
@@ -103,31 +194,9 @@ const response = await fetch("https://acp-api.amivoice.com/v1/recognize", {
 });
 ```
 
-### 修正後のコード例
+### 修正後
 
-**`a` を最後に append** します。キーは `.trim()` しておくと `.env` の改行混入を防げます。
-
-```typescript
-const apiKey = process.env.AMIVOICE_API_KEY?.trim();
-if (!apiKey) {
-  throw new Error("AMIVOICE_API_KEY が設定されていません");
-}
-
-const engine = "-a-general";
-const blob = new Blob([new Uint8Array(audioBuffer)], {
-  type: mimeType, // 例: audio/webm
-});
-
-const form = new FormData();
-form.append("u", apiKey);
-form.append("d", engine);
-form.append("a", blob, "audio.webm"); // ✅ 必ず最後
-
-const response = await fetch("https://acp-api.amivoice.com/v1/recognize", {
-  method: "POST",
-  body: form,
-});
-```
+正常系の実装は [文字起こしの正常系](#文字起こしの正常系) を参照。**`a` を最後に append** し、キーは `.trim()` して `.env` の改行混入を防ぎます。
 
 # 音声認識履歴を LLM で要約する — Next.js BFF + metadata_json キャッシュ
 AmiVoice で音声認識したテキストを DB に保存し、履歴詳細画面から **OpenAI 互換 API（Gemini / OpenAI など）で要約** する機能の実装メモです。フェーズ1の英→日翻訳と同じ `LLM_*` 環境変数を流用し、**専用カラムを増やさず `metadata_json` にキャッシュ** する構成にしています。
@@ -400,87 +469,20 @@ export function SummarySection({
 
 要約機能は **既存の翻訳インフラをそのまま流用** し、DB スキーマを増やさず `metadata_json` に結果を蓄積する、デモ向けの最小構成です。本番で再生成や要約バージョン管理が必要になったら、専用テーブルや `summaryVersion` フィールドの追加を検討した方が良いですね。
 
+# なぜ AmiVoice か
 
-# 他製品紹介
-最後にAmiVoice と同じく **音声をテキストに変換する API / SDK / サービスを紹介させてください**、大きく次の4系統に分かれます。
+今回は **日本語のビジネス会話** と **同期 HTTP によるファイル認識（WebM）** が要件だったため AmiVoice を採用しました。
 
-| 系統 | 代表例 | AmiVoice との関係 |
-| --- | --- | --- |
-| 国内・日本語特化 | AmiVoice、Voioi、ReazonSpeech | 日本語ビジネス会話・専門用語向け |
-| グローバルクラウド API | Google / Azure / AWS / Deepgram / AssemblyAI など | 開発者向け STT API として直接競合 |
-| OSS / 自前ホスト | Whisper、ReazonSpeech、Kotoba-Whisper | API ではなく自前運用。データ持ち出し制約向き |
-| SaaS（完成プロダクト） | Notta、Rimo Voice、LINE WORKS AiNote | API 統合ではなく GUI で完結 |
-
-## 国内・日本語特化
-
-| サービス | ストリーミング | 主な特徴 |
-| --- | --- | --- |
-| [AmiVoice Cloud Platform](https://www.advanced-media.co.jp/amivoice/cloud/) | ✅ | 国内シェア No.1。医療・金融など領域特化エンジン、専用環境構築、日本語サポート、**発話時間のみ課金** |
-| Voioi | ✅ | 93言語対応。リアルタイム・ファイル両方。国内向け |
-| [ReazonSpeech](https://github.com/reazon-research/ReazonSpeech) | △ | 日本語特化 OSS。自前ホスト or API 利用 |
-
-AmiVoice の強みは **日本語精度**、**専門用語辞書**、**国内サポート**、**オンプレ / 専用環境** あたり。海外 API と比べて、日本語のビジネス会話や専門分野では依然有力です。
+| 観点 | AmiVoice | 他候補（例） |
+|------|----------|-------------|
+| 日本語・専門用語 | 領域特化エンジン（`-a-general` など） | Whisper API は汎用的 |
+| 連携方式 | 同期 HTTP + ストリーミング | Deepgram は低遅延向き |
+| 今回の用途 | ブラウザ録音 WebM のバッチ認識 | SaaS（Notta 等）は API 統合不要な場合向き |
+| データ持ち出し | 専用環境構築可 | Whisper 自前ホストも選択肢 |
 
 :::message
-AmiVoice 提供元のアドバンスト・メディアは、[音声認識 API 主要 7 社の価格・機能比較表（2026 年版）](https://www.advanced-media.co.jp/newsrelease/11316/) を公開しています。客観的な比較資料として参考になります。
+詳細な比較表は AmiVoice 提供元の [音声認識 API 主要 7 社の価格・機能比較表（2026 年版）](https://www.advanced-media.co.jp/newsrelease/11316/) が参考になります。ストリーミング API 全般の比較は [こちら](https://zenn.dev/kennejima/articles/56f60e1962291e) もどうぞ。
 :::
 
-## グローバルクラウド STT API
-
-AmiVoice と同じく **REST / WebSocket API + ストリーミング** で使える開発者向けサービスです。
-
-| サービス | ストリーミング | 日本語 | ざっくり特徴 |
-| --- | --- | --- | --- |
-| [Google Cloud Speech-to-Text](https://cloud.google.com/speech-to-text) | ✅ | ✅ | 125+ 言語。話者分離・カスタム語彙。設定はやや複雑 |
-| [Azure Speech Services](https://azure.microsoft.com/products/ai-services/speech-to-text) | ✅ | ✅ | エンタープライズ向け。価格競争力あり |
-| [AWS Transcribe](https://aws.amazon.com/transcribe/) | ✅ | ✅ | AWS 連携が前提なら自然。カスタム語彙対応 |
-| [Deepgram](https://deepgram.com/) | ✅ | ✅ | **低遅延（~300ms）**・低コスト。ライブ字幕向き |
-| [AssemblyAI](https://www.assemblyai.com/) | ✅ | ✅ | 開発者体験が良い。要約・感情分析など付加機能も |
-| [OpenAI Whisper API](https://platform.openai.com/docs/guides/speech-to-text) | ❌ | ✅ | 精度は高いが **バッチのみ**（リアルタイム向きではない） |
-| [Rev AI](https://www.rev.ai/) | ✅ | △ | 精度重視だが **高コスト** |
-| [Speechmatics](https://www.speechmatics.com/) | ✅ | ✅ | 英語・多言語で精度評価が高い |
-| [Soniox](https://soniox.com/) | ✅ | △ | 新興。低コスト・低遅延を謳う |
-
-ストリーミング API の比較記事としては、[ストリーミング音声認識 API/SDK の最新比較（2025 年）](https://zenn.dev/kennejima/articles/56f60e1962291e) も参考になります。
-
-## OSS / 自前ホスト
-
-API ではなく、自前で STT 基盤を組む選択肢です。
-
-| 選択肢 | 特徴 |
-| --- | --- |
-| [OpenAI Whisper](https://github.com/openai/whisper) | 精度は高い。GPU 推奨。**ストリーミング非対応**（バッチ向き） |
-| [ReazonSpeech](https://github.com/reazon-research/ReazonSpeech) | 日本語特化 OSS |
-| [Kotoba-Whisper](https://huggingface.co/kotoba-tech/kotoba-whisper-v2.0) | 日本語 Whisper 派生 |
-| faster-whisper + pyannote | 話者分離を自前で組み合わせる構成 |
-
-**データを外に出せない**（オンプレ・ローカル必須）場合は、AmiVoice の専用環境構築 or Whisper 自前運用が現実的な選択肢になります。
-
-## SaaS（API ではないが用途は近い）
-
-Cursor SDK で要約までやるなら、API 統合ではなく **完成プロダクト** として検討する選択肢もあります。
-
-| サービス | 特徴 |
-| --- | --- |
-| [Notta](https://www.notta.ai/ja) | 58 言語。Zoom 連携。個人向け月額あり |
-| [Rimo Voice](https://rimo.app/) | 日本語精度が高め。編集 UI が使いやすい |
-| [LINE WORKS AiNote](https://line-works.com/ai-note/) | 無料枠あり（月 300 分）。手軽 |
-| Google AI Studio (Gemini) | ファイルアップロードで文字起こし + 要約。API というより GUI |
-
-## どれを選ぶか
-
-用途別のざっくり目安です。
-
-```
-リアルタイム文字起こし（ストリーミング）
-  ├─ 日本語・専門用語・国内サポート重視 → AmiVoice
-  ├─ 低遅延・低コスト重視             → Deepgram / AssemblyAI
-  └─ 既存クラウド統合                → Azure / Google / AWS
-
-ファイル文字起こし（バッチ）
-  ├─ 手軽さ重視                      → OpenAI Whisper API
-  └─ 日本語精度重視                  → AmiVoice / ReazonSpeech
-
-データを外に出せない
-  └─ AmiVoice 専用環境 or Whisper 自前ホスト
-```
+# 最後に
+この記事が誰かの役に立てれば幸いです。
