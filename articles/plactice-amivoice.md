@@ -11,6 +11,10 @@ publication_name: "genai"
 この記事はZennfes Spring 2026「音声認識AmiVoice APIと生成AIで作る音声体験」エントリ記事です。
 
 AmiVoice API と Cursor SDK を組み合わせて「音声を取り込み → テキスト化 → 要約」する流れを作る前提で書いていきます。まずは同じ **Speech-to-Text（音声認識）** の領域で、AmiVoice と並んで検討される製品・サービスを整理しておきます。
+そしておそらく多くの方はCursor、Claude Code、Codex、Devin等を使用しながら開発していると勝手に思っているので、新しいAPIを試す時にもうドキュメントを1から読むこともないかなと思っています。なのでここではAIに指示出ししながら実装して、エラーになったことを記載していきます。
+
+# `received illegal service authorization`エラー
+AmiVoice API の同期 HTTP を Next.js の Route Handler（BFF）から `fetch` + `FormData` で呼んだとき、**curl では成功するのにアプリだけ認証エラー**になる、という話です。
 
 
 # 他製品紹介
