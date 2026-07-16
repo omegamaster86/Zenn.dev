@@ -1,5 +1,5 @@
 ---
-title: "PostgreSQLのLATERALに関して調べてみたんじゃ"
+title: "PostgreSQLのCASEに関して調べてみたんじゃ"
 emoji: "⏳"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["PostgreSQL", "SQL", "CASE"]
