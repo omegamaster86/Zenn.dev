@@ -86,17 +86,57 @@ your-app/
 
 ## 2. repo 外への symlink（ローカル専用）
 
+正本を `cursor-rules/omega` のような **別リポジトリ** に置き、各 PJ の `.cursor/` から **絶対パス symlink** で参照する方式です。`commands` だけじゃなく、agents / rules / skills もまとめてリンクします。
+
+```text
+cursor-rules/omega/          # 正本（1か所）
+├── commands/
+├── skills/
+├── rules/
+└── agents/
+
+your-app/
+└── .cursor/
+    ├── commands/          -> /Users/you/cursor-rules/omega/commands
+    ├── agents/            -> /Users/you/cursor-rules/omega/agents
+    ├── rules/
+    │   ├── global.mdc                    -> .../omega/rules/global.mdc
+    │   ├── multi-agent-task-enforcement.mdc -> .../omega/rules/...
+    │   └── forge-models.mdc              # 初回だけコピー（PJ 固有）
+    └── skills/
+        ├── forge-mode/    -> .../omega/skills/forge-mode
+        └── verify-myapp/  # PJ 固有（リンクしない）
 ```
-your-app/.cursor/commands -> /Users/you/cursor-rules/omega/commands
+
+セットアップ例（omega の場合）:
+
+```bash
+/path/to/cursor-rules/omega/scripts/omega-link /path/to/your-app
 ```
+
+手で `ln -s` するのではなく、スクリプトで一括リンクするのがポイントです。
 
 | | ローカル | Cloud | commit 量 | 更新 |
 |--|---------|-------|----------|------|
 | 評価 | ○ | **×** | 不要 | 正本を直すだけ |
 
+**ローカルで動く理由**: symlink 先の `/Users/you/cursor-rules/omega` が Mac 上に存在する。正本を直すだけで全 PJ に即反映されます。
+
+**Cloud で壊れる理由**: Cloud Agent は GitHub の repo だけを VM に checkout する。Mac の home や repo 外のパスは存在しないため、symlink が宙に浮きます。
+
+`.cursor/` を `.gitignore` していてもローカルでは問題ない一方、Cloud には `.cursor/` 自体が届かないので、この方式単体では Cloud 非対応です。絶対パス symlink を commit しても、他の人の Mac ではパスが違うので **チーム共有にも向きません**。
+
+| 向いている | 向いていない |
+|-----------|-------------|
+| ローカル Desktop だけ使う | Cloud Agent も使う |
+| 正本を1か所で更新したい | チームで同じパスを共有したい |
+| commit を増やしたくない | Windows も混在（symlink 注意） |
+
 ローカルだけなら最も楽。今もローカルはこれです。ただし Cloud では symlink 先が存在しないので **完全に非対応**。ここで初めて「あ、別マシンか」と気づきました。
 
 ## 3. repo 内 submodule + 相対 symlink
+
+正本を **repo 内**（submodule）に置く方式です。方式2との違いは「symlink 先が repo の中にあるか外にあるか」だけですが、Cloud 対応の可否がここで分かれます。
 
 ```
 your-app/
