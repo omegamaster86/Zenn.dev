@@ -149,7 +149,7 @@ your-app/
 |--|---------|-------|----------|------|
 | 評価 | ○ | ○ | submodule bump が必要 | omega 更新のたび commit |
 
-Cloud でも動きますが、**共有ルールを更新するたびに各 PJ で submodule を bump して commit** する必要があります。「commit を減らしたい」要件には向きません。
+Cloud でも動きますが、**共有ルールを更新するたびに各 PJ で submodule を bump（submodule の参照先（コミット）を新しい版に上げる） して commit** する必要があります。「commit を減らしたい」要件には向きません。
 
 ## 4. ローカル Plugin（`~/.cursor/plugins/local/`）
 
