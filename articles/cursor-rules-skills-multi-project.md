@@ -15,8 +15,11 @@ publication_name: "genai"
 Cursor で rules・skills・commands を使い始めた頃は「これ便利！」と思っていたのですが、PJ が増えると一気に地獄が始まりました。ローカルでは `/forge-mode（skillsやcommand）` がサクッと出るのに、Cloud Agent だと存在しない。各 PJ にコピーしたら更新が追いつかない。symlink で繋いだらローカルは天国、Cloud は無の境地…
 
 正直、最初は「Cloud でも同じ `.cursor/` 読めるでしょ？」と甘く見ていました。甘かったです。原宿のチョコバナナより甘かったです…
+そもそもローカルの意味っていうね…
 
 今回は、**複数 PJ で rules / skills / commands を共有し、ローカルと Cloud の両方で使う**ための管理方法を、私が実際に試行錯誤した内容をベースに整理します。
+
+ちなみに Cursor 公式も、Cloud Agent の MCP / skills まわりの改善やトークン効率の向上をアナウンスしています（[X の投稿](https://x.com/cursor_ai/status/2084317547608911986)）。セットアップの手間はあるものの、Cloud で回すメリットは以前より大きくなっている印象です。
 
 実装例として私が使っている **omega**（`cursor-rules/omega`）を紹介しますが、omega じゃなくても同じ考え方で運用できます。omega はあくまで「うちの家のルール置き場」です。
 
@@ -292,13 +295,123 @@ chmod +x /path/to/cursor-rules/omega/scripts/omega-cloud-init
 | `.cursor/environment.json` | Cloud Build の install フック |
 | `.cursor/install-omega.sh` | 正本 repo を clone して VM に展開 |
 
-`environment.json` の例:
+テンプレの正本は [cursor-rules/omega/templates/cloud/.cursor/](https://github.com/omegamaster86/cursor-rules/tree/main/omega/templates/cloud/.cursor) にあります。`omega-cloud-init` はここからコピーするだけです。
+
+### `.cursor/environment.json` の中身
+
+Cloud Agent の VM を Build するとき、Cursor が最初に読む設定ファイルです。
 
 ```json
 {
   "user": "ubuntu",
   "install": "sh .cursor/install-omega.sh"
 }
+```
+
+| キー | 意味 |
+|------|------|
+| `user` | VM 上でコマンドを実行するユーザー。Cloud Agent のデフォルトは `ubuntu` |
+| `install` | **Build 時に1回だけ**実行されるコマンド。ここで omega のインストールを走らせる |
+
+`install` は `npm install` と同じ感覚です。エージェントが動き出す前に、VM 側の依存（今回は omega の rules / skills / commands）を揃えるためのフックです。
+
+:::message
+`environment.json` は repo に commit する前提のファイルです。Cloud は commit されたものしか読めないので、ここに書いた install が Build 時に確実に走ります。
+:::
+
+### `.cursor/install-omega.sh` の中身
+
+PJ に commit するスクリプト本体です。やっていることは **2段階** です。
+
+1. `cursor-rules` repo を clone（または更新）
+2. `omega/scripts/install-omega-cloud.sh` を実行して VM にリンクを張る
+
+```bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Cloud Agent install hook (commit this file + environment.json in each project).
+# Clones cursor-rules, then runs omega/scripts/install-omega-cloud.sh.
+
+OMEGA_REPO="${OMEGA_REPO:-https://github.com/omegamaster86/cursor-rules.git}"
+OMEGA_REF="${OMEGA_REF:-main}"
+CACHE_ROOT="${OMEGA_CACHE:-${HOME}/.cache/omega}"
+REPO_DIR="${CACHE_ROOT}/cursor-rules"
+
+clone_or_update_repo() {
+  local repo_url="$1"
+
+  # private repo 用: GITHUB_TOKEN があれば clone URL に埋め込む
+  if [[ -n "${GITHUB_TOKEN:-}" && "$repo_url" != *"@"* ]]; then
+    repo_url="${repo_url/https:\/\//https://${GITHUB_TOKEN}@}"
+  fi
+
+  if [[ ! -d "$REPO_DIR/.git" ]]; then
+    mkdir -p "$CACHE_ROOT"
+    git clone --depth 1 --branch "$OMEGA_REF" "$repo_url" "$REPO_DIR"
+    return 0
+  fi
+
+  # 2回目以降の Build: fetch して最新に合わせる
+  git -C "$REPO_DIR" fetch --depth 1 origin "$OMEGA_REF"
+  git -C "$REPO_DIR" checkout "$OMEGA_REF"
+  git -C "$REPO_DIR" reset --hard "FETCH_HEAD"
+}
+
+clone_or_update_repo "$OMEGA_REPO"
+
+export OMEGA="$REPO_DIR/omega"
+exec bash "$OMEGA/scripts/install-omega-cloud.sh"
+```
+
+#### 環境変数（デフォルト値）
+
+| 変数 | デフォルト | 用途 |
+|------|------------|------|
+| `OMEGA_REPO` | `https://github.com/omegamaster86/cursor-rules.git` | omega 正本の repo URL |
+| `OMEGA_REF` | `main` | 取得するブランチ / tag |
+| `OMEGA_CACHE` | `~/.cache/omega` | VM 上の clone 先 |
+| `GITHUB_TOKEN` | なし | private repo clone 用（Cloud Secrets に設定） |
+
+omega を更新したあと、各 PJ で commit し直す必要はありません。次回 Rebuild 時に `OMEGA_REF` の最新が fetch されます。
+
+#### `install-omega-cloud.sh` が VM 上でやること
+
+`install-omega.sh` の最後で呼ばれる core スクリプトです（[omega/scripts/install-omega-cloud.sh](https://github.com/omegamaster86/cursor-rules/blob/main/omega/scripts/install-omega-cloud.sh)）。PJ には commit しません。clone された omega 内から実行されます。
+
+| 対象 | リンク先 | 理由 |
+|------|----------|------|
+| `commands/` | workspace の `.cursor/commands` | slash コマンドの入口 |
+| `agents/` | workspace の `.cursor/agents` | サブエージェント定義 |
+| `rules/global.mdc` 等 | workspace の `.cursor/rules/` | Cloud は workspace 側の rules を読む |
+| `rules/forge-models.mdc` | 初回のみコピー | PJ 固有設定。repo に無ければテンプレから |
+| `skills/<共有>/` | workspace の `.cursor/skills/` **と** VM の `~/.cursor/skills/` | skills は home からも探索される |
+| `skills/verify-*` | **触らない** | PJ 固有。repo 側に置いたものだけ使う |
+
+Build 完了時のログに、だいたいこんな出力が出ます。
+
+```text
+omega cloud install complete
+  omega:     /home/ubuntu/.cache/omega/cursor-rules/omega
+  workspace: /workspace
+  workspace .cursor: /workspace/.cursor
+  vm skills:         /home/ubuntu/.cursor/skills
+```
+
+### 全体の流れ（Build 時）
+
+```text
+Cloud Agent Rebuild
+  │
+  ├─ 1. GitHub から your-app を checkout（/workspace）
+  │
+  ├─ 2. .cursor/environment.json を読む
+  │
+  ├─ 3. install: sh .cursor/install-omega.sh を実行
+  │      ├─ cursor-rules を ~/.cache/omega/ に clone
+  │      └─ install-omega-cloud.sh でリンクを張る
+  │
+  └─ 4. Build 完了 → Agent 起動時に /forge-mode 等が使える
 ```
 
 ## Step 2: commit & push
@@ -317,28 +430,30 @@ git push
 2. 対象 PJ の環境を選択
 3. **Rebuild** を実行
 
-Build 時に `install-omega.sh` が走り、VM 上で次が行われます。
+Rebuild すると、上の「全体の流れ」が走ります。Build ログに `omega cloud install complete` が出ていれば OK です。
 
-- `cursor-rules` repo を clone
-- `omega/scripts/install-omega-cloud.sh` を実行
-- **commands / agents / rules** → workspace の `.cursor/` にリンク
-- **skills** → workspace の `.cursor/skills/` と VM の `~/.cursor/skills/` の両方にリンク
-
-skills を VM home にも置くのは、Cloud Agent が skills を home からも探索するためです。rules は workspace 側に置くのが安全です（`~/.cursor/rules` は Cloud で自動適用されにくい既知の挙動があります）。
+:::message alert
+**初回セットアップ後や `environment.json` を変更したときは、必ず Rebuild してください。** push しただけでは install は再実行されません。
+:::
 
 ## Step 4: 確認
 
-Cloud Agent を起動し、`/forge-mode` などの slash コマンドが選べることを確認します。
+Cloud Agent を起動し、次を確認します。
+
+- slash コマンドに `/forge-mode` や `/verify-done` が出る
+- Build ログに `omega cloud install complete` がある
+- PJ 固有の `verify-<app>/` skill が repo にあれば、それも使える
 
 ## private repo の場合
 
-正本 repo が private なら、Cloud Agent の **Secrets** に `GITHUB_TOKEN` を設定してください。`install-omega.sh` が clone 時に使います。
+正本 repo（`cursor-rules`）が private なら、Cloud Agent の **Secrets** に `GITHUB_TOKEN` を設定してください。`install-omega.sh` が clone URL に自動で埋め込みます。
 
-| 環境変数 | デフォルト | 用途 |
-|----------|------------|------|
-| `OMEGA_REPO` | `https://github.com/omegamaster86/cursor-rules.git` | 正本 repo URL |
-| `OMEGA_REF` | `main` | ブランチ / tag |
-| `GITHUB_TOKEN` | なし | private repo clone 用 |
+```bash
+# install-omega.sh 内部の処理（イメージ）
+repo_url="${repo_url/https:\/\//https://${GITHUB_TOKEN}@}"
+```
+
+`OMEGA_REPO` を fork 先や別 org の repo に変えたい場合も、上の環境変数表の `OMEGA_REPO` / `OMEGA_REF` を Cloud Secrets または Build 環境で上書きできます。
 
 # 更新時の運用
 
@@ -430,4 +545,5 @@ Cloud Agent 周りはまだ進化中なので、もっと楽な公式のやり�
 - [Cursor Plugins 公式ドキュメント](https://cursor.com/docs/plugins)
 - [Cursor Skills 公式ドキュメント](https://cursor.com/docs/skills)
 - [Cloud Agent Plugin Compatibility（Forum）](https://forum.cursor.com/t/cloud-agent-plugin-compatibility/167781)
+- [Cloud Agent の MCP / skills 改善（Cursor 公式 X）](https://x.com/cursor_ai/status/2084317547608911986)
 - omega 正本: `cursor-rules/omega`（`omega/README.md` にセットアップ手順あり）
