@@ -3,8 +3,8 @@ title: "Cursorのrules・skillsを複数PJで使い回す方法を整理した�
 emoji: "🌕"
 type: "tech"
 topics: ["cursor", "AI", "AI駆動開発", "Cursor Cloud", "Cursor Skills"]
-published: false
-# published_at: 2026-09-14 23:00
+published: true
+published_at: 2026-09-15 11:00
 publication_name: "genai"
 ---
 
@@ -19,7 +19,7 @@ Cursor で rules・skills・commands を使い始めた頃は「これ便利！�
 
 今回は、**複数 PJ で rules / skills / commands を共有し、ローカルと Cloud の両方で使う**ための管理方法を、私が実際に試行錯誤した内容をベースに整理します。
 
-ちなみに Cursor 公式も、Cloud Agent の MCP / skills まわりの改善やトークン効率の向上をアナウンスしています（[X の投稿](https://x.com/cursor_ai/status/2084317547608911986)）。セットアップの手間はあるものの、Cloud で回すメリットは以前より大きくなっている印象です。
+ちなみに Cursor 公式も、Cloud Agent の MCP / skills まわりの改善やトークン効率の向上をアナウンスしています（[X の投稿](https://x.com/cursor_ai/status/2084317547608911986)）。セットアップの手間はあるものの、Cloud で回すメリットは以前より大きくなっている印象です。モバイルアプリでも操作できるようになりましたし！
 
 実装例として私が使っている **omega**（`cursor-rules/omega`）を紹介しますが、omega じゃなくても同じ考え方で運用できます。omega はあくまで「うちの家のルール置き場」です。
 
@@ -464,38 +464,6 @@ repo_url="${repo_url/https:\/\//https://${GITHUB_TOKEN}@}"
 
 skill を新規追加した場合は、ローカルでは `omega-link` を再実行してください（新しい skill ディレクトリの symlink を張るため）。
 
-# やってはいけないこと（全部やった）
-
-未来のオメガマスターのために、私が踏んだ地雷を書きます。
-
-## 1. repo 外 symlink だけで Cloud も動くと思う
-
-`/Users/you/cursor-rules/omega` への絶対 symlink は、ローカルでは動きますが Cloud では必ず壊れます。
-
-## 2. `~/.cursor/plugins/local/` だけで Cloud もカバーする
-
-ローカル Plugin は Desktop 専用です。Cloud には届きません。
-
-Customize から user scope で Install した場合、installed plugin として Cloud に sync される可能性はありますが、**Marketplace 非公開の個人 plugin では保証が弱い**です。私も「Install したら Cloud でも読めるでしょ？」と思って検証しましたが、期待通りにはいきませんでした。確実性を取るなら `environment.json` 方式がよいです。
-
-## 3. Sync Skills だけで全部カバーする
-
-Settings → Agents → **Sync Skills for Cloud Agents** は、`~/.cursor/skills/` **だけ**を sync します。
-
-- commands → 対象外
-- rules → 対象外
-- agents → 対象外
-
-omega 全体を Cloud で使うなら、skills 同期だけでは足りません。
-
-## 4. `.cursor/` を gitignore したまま Cloud を使う
-
-Cloud は **commit されたファイルしか読めません**。Cloud 用の `environment.json` と `install-omega.sh` は必ず commit してください。
-
-## 5. 共有 repo に PJ 固有の前提を入れる
-
-`create-pr-video` のような「特定環境の proxy を立てる」コマンドは、共有 omega ではなく `verify-<app>/` skill に寄せるのがよいです。共有部分を汚さず、PJ 固有は repo に直接置きます。
-
 # 方式の選び方（早見表）
 
 | 要件 | おすすめ |
@@ -507,6 +475,63 @@ Cloud は **commit されたファイルしか読めません**。Cloud 用の `
 | 個人で commit ゼロ、Cloud 不要 | ローカル Plugin |
 
 迷ったらこれでいいと思います。**「ローカルは symlink、Cloud は environment.json、PJ 固有は forge-models / verify-* だけ repo に置く」**。うちはこれです。
+
+## ちなみにsubmodule vs ハイブリッド：どっちを選ぶ？
+
+正本を [cursor-rules](https://github.com/omegamaster86/cursor-rules/tree/main) のような共有 repo にまとめて **そこへの commit は OK** な場合でも、方式の選び方は変わりません。迷いやすいのは「commit 先」が2種類あることです。
+
+| commit 先 | ハイブリッド | submodule |
+|-----------|-------------|-----------|
+| 共有 repo（`cursor-rules/omega` など） | ✅ する | ✅ する |
+| **各アプリ repo**（`your-app` など） | `environment.json` + `install-omega.sh` だけ | **submodule の参照更新（bump）も毎回** |
+
+記事で言っている「commit を減らしたい」は、**正本 repo への commit を嫌がっている話ではなく**、各 PJ の repo に共有 rules の差分を載せたくない、という意味です。
+
+### submodule が向く条件
+
+次を満たすなら、**repo 内 submodule + 相対 symlink** の方が筋がいいです。
+
+- **各アプリ repo に submodule bump の commit が出ても OK**
+  - omega を直す → 各 PJ で `git submodule update` → bump commit → PR
+- **PJ ごとに omega の版を固定したい**（再現性・レビューで版を見たい）
+- **Cloud Build 時の外部 clone を避けたい**
+  - checkout だけで `.cursor/` が揃う
+  - private repo でも `GITHUB_TOKEN` / Cloud Secrets が不要になりやすい
+- **ローカルも Cloud も同じ経路**にしたい（相対 symlink 一本）
+- **PJ 数が少ない**、または bump の PR 運用に抵抗がない
+
+「正本は `cursor-rules`、各アプリは submodule で参照」は、**チーム向け・版固定向き**の構成です。
+
+### ハイブリッドがまだ向く条件
+
+共有 repo に commit しても、次ならハイブリッドの方が楽です。
+
+- **PJ が多い**（3〜5 個以上）
+- **omega をよく直す**（skills / rules を頻繁に更新）
+- **各アプリ repo の PR に「bump omega」が乗るのを避けたい**
+- **ローカルでは正本を直したら全 PJ に即反映**したい（repo 外 symlink）
+- **Cloud は次回 Rebuild で最新版を取りに行けばよい**（各 PJ の bump commit 不要）
+
+この場合の流れはこうです。
+
+1. 正本: `cursor-rules` に push
+2. ローカル: symlink で即反映
+3. Cloud: 次回 Rebuild で最新 `OMEGA_REF` を取得
+
+### 判断の目安
+
+```
+共有 repo（cursor-rules）に commit OK？
+  └─ YES（どちらもここは同じ）
+       │
+       ├─ 各アプリ repo に bump commit も OK？
+       │    └─ YES → submodule + 相対 symlink
+       │
+       └─ NO（アプリ repo は最小にしたい）
+            └─ ハイブリッド（repo 外 symlink + environment.json）
+```
+
+PJ が少なくて版固定したいなら submodule、PJ が多くて rules をよく直すならハイブリッド、という整理です。
 
 # セットアップ後の `.cursor/` の全体像
 
