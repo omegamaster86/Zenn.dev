@@ -139,7 +139,7 @@ AmiVoice から次のような JSON が返ることがあります。
 ```json
 {
   "text": "",
-  "code": ":-",
+  "code": "-",
   "message": "received illegal service authorization"
 }
 ```
