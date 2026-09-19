@@ -77,26 +77,20 @@ on:
 
 # ジョブ構成（2段階）
 
-デプロイは2段階のジョブで実行されます。Job 1 で Artifact Registry にイメージを push し、Job 2 が `needs: build-and-push` で **同じ commit SHA タグのイメージ** を Cloud Run に載せます。
-
-両ジョブに `environment: ${{ inputs.environment }}` があるのは、**選択した Environment の Variables / Secrets を、ビルド時・デプロイ時の両方で参照するため** です。
+デプロイは2段階のジョブで実行されます。Job 1 で Artifact Registry にイメージを push し、Job 2 が `needs: build-and-push` で **同じ commit SHA タグのイメージ** を Cloud Run に載せます。両ジョブに `environment: ${{ inputs.environment }}` を付け、選択した Environment の設定を参照します（仕組みの詳細は次章）。
 
 ## Job 1: Build and Push
 
 ```yaml
 build-and-push:
   runs-on: ubuntu-latest
-  environment: ${{ inputs.environment }}  # ← 環境ごとの vars/secrets を参照
+  environment: ${{ inputs.environment }}
 ```
 
-処理の流れ:
-
 1. 選択されたブランチを checkout
-2. GCP 認証（`GCP_SERVICE_ACCOUNT_KEY`）
-3. 環境ごとの build-arg で Docker イメージをビルド
+2. GCP 認証（`secrets.GCP_SERVICE_ACCOUNT_KEY`）
+3. `${{ vars.* }}` / `${{ secrets.* }}` を build-arg に渡して Docker イメージをビルド
 4. Artifact Registry に push（タグは commit の short SHA）
-
-Next.js の `NEXT_PUBLIC_*` など、**クライアントに埋め込む値**は Job 1 の Docker build で `--build-arg` として渡します。ビルド時にイメージへ焼き込むタイミングで注入される、というイメージです。
 
 ```yaml
 docker build \
@@ -114,9 +108,7 @@ deploy:
   environment: ${{ inputs.environment }}
 ```
 
-`gcloud run deploy` で、環境ごとに定義された Cloud Run サービスへ反映します。
-
-**サーバー側だけで使う値**（`INTERNAL_*` など）は Job 2 で `--update-env-vars` として付与します。Job 1 で焼き込んだ値と、Job 2 でランタイム注入する値が分かれている点がポイントです。
+`gcloud run deploy` で Environment ごとの Cloud Run サービスへ反映します。
 
 ```yaml
 gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
@@ -129,25 +121,134 @@ gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
   # ...
 ```
 
-環境ごとに **別の Cloud Run サービス**（例: `contech-dev5-run-frontend` / `contech-dev6-run-frontend`）にデプロイされるイメージです。
+環境ごとに **別の Cloud Run サービス**（例: `contech-dev5-run-frontend` / `contech-dev6-run-frontend`）にデプロイされます。
 
 # GitHub Environments の役割
 
-各 Environment には **Variables** と **Secrets** が紐づいています。
+各 Environment には **Variables**（`${{ vars.* }}`）と **Secrets**（`${{ secrets.* }}`）が紐づきます。**キー名は全 Environment で共通、値だけ環境ごとに異なる**運用です。
 
-| 種類 | 例 |
+## 「集約」とは具体的に何が起きるか
+
+Run workflow で **Environment**（例: `develop6`）を選ぶと、両ジョブの `environment: ${{ inputs.environment }}` により **develop6 に登録された値だけ** が解決されます。YAML 側に dev5 用・dev6 用の URL やサービス名は **一切書きません**。
+
+```mermaid
+flowchart TD
+  A[Run workflow] --> B[Environment: develop6 を選択]
+  B --> C["build-and-push<br/>environment: develop6"]
+  B --> D["deploy<br/>environment: develop6"]
+  C --> E["vars / secrets を develop6 の値で解決"]
+  D --> E
+  E --> F[Docker build-arg]
+  E --> G[gcloud run deploy]
+```
+
+:::message
+「ブランチ名 = 環境」ではありません。**Branch** はコード、**Environment** は設定、の2軸です。
+:::
+
+## Variables と Secrets の使い分け
+
+| 種類 | 参照 | 向き | 例 |
+| --- | --- | --- | --- |
+| **Variables** | `${{ vars.XXX }}` | 非機密の設定値 | API URL、Cloud Run サービス名、GCP リージョン |
+| **Secrets** | `${{ secrets.XXX }}` | 機密情報 | GCP SA 鍵、Keycloak client secret、内部トークン |
+
+Secrets は GitHub UI 上で値を再表示できず、Actions ログでもマスクされます。パスワードや JSON 鍵は Variables ではなく Secrets に入れます。
+
+## 本プロジェクトで参照している一覧
+
+`deploy.yml` から逆引きした、Environment ごとに登録が必要なキーです。
+
+### Variables（`${{ vars.* }}`）
+
+| カテゴリ | キー名 | 主な用途 |
+| --- | --- | --- |
+| GCP / Registry | `GCP_PROJECT_ID` | GCP プロジェクト |
+| | `GCP_REGION` | Cloud Run リージョン |
+| | `ARTIFACT_REGISTRY_URL` | イメージ push 先 |
+| | `ARTIFACT_REGISTRY_REPO` | リポジトリ名 |
+| Cloud Run | `CLOUD_RUN_SERVICE_NAME` | デプロイ先サービス名 |
+| | `PORT`, `MEMORY`, `CPU` | コンテナスペック |
+| | `MIN_INSTANCES`, `MAX_INSTANCES` | スケール設定 |
+| フロント（ビルド時） | `NEXT_PUBLIC_APP_URL` | アプリ URL |
+| | `NEXT_PUBLIC_API_BASE_URL` | 公開 API URL |
+| | `NEXT_PUBLIC_PROJECT_ID`, `NEXT_PUBLIC_LOCATION` | GCP 関連（クライアント向け） |
+| | `NEXT_PUBLIC_KEYCLOAK_*` | Keycloak 設定（6 キー） |
+| | `NEXT_PUBLIC_FIREBASE_*` | Firebase 設定（7 キー） |
+| エージェント | `A2A_ENDPOINT_URL`, `AGENT_ENGINE_ID` | エージェント連携 |
+| その他 | `NODE_ENV` | ビルド時の NODE_ENV |
+| サーバー（ランタイム） | `INTERNAL_API_BASE_URL` | 内部 API URL（Job 2 で注入） |
+
+### Secrets（`${{ secrets.* }}`）
+
+| キー名 | 注入タイミング | 用途 |
+| --- | --- | --- |
+| `GCP_SERVICE_ACCOUNT_KEY` | Job 1 / Job 2 | GCP 認証 |
+| `KEYCLOAK_CLIENT_SECRET` | Job 1（build-arg） | Keycloak 認証 |
+| `INTERNAL_TOKEN` | Job 2（`--update-env-vars`） | 内部 API トークン |
+
+## ビルド時注入 vs ランタイム注入
+
+Environment の値は、**いつアプリに渡すか**でも分かれています。
+
+| 段階 | ジョブ | 渡し方 | 代表例 |
+| --- | --- | --- | --- |
+| **ビルド時** | Job 1: build-and-push | Docker `--build-arg` → イメージに焼き込み | `NEXT_PUBLIC_*`, `KEYCLOAK_CLIENT_SECRET` |
+| **ランタイム** | Job 2: deploy | `gcloud run deploy --update-env-vars` | `INTERNAL_TOKEN`, `INTERNAL_API_BASE_URL` |
+
+`NEXT_PUBLIC_*` は Next.js のビルド成果物に埋め込まれるため、**Environment ごとに別イメージ**になります。サーバー専用の `INTERNAL_*` は Cloud Run 起動時に Job 2 で付与します。両ジョブに `environment:` があるのは、**ビルド時・デプロイ時の両方で同じ Environment の設定を参照するため**です。
+
+## YAML にベタ書きしない理由
+
+やらない例:
+
+```yaml
+# 環境ごとに if 分岐で URL を書く — こうしない
+if: inputs.environment == 'develop5'
+  run: docker build --build-arg NEXT_PUBLIC_API_BASE_URL=https://dev5-api.example.com
+```
+
+- 環境が増えるたび YAML が肥大化する
+- URL や鍵が Git 履歴に残るリスクがある
+- dev5 / dev6 の差分がコードレビューで追いにくい
+
+やっている例:
+
+- **ワークフロー**: 「何を参照するか」だけ（`${{ vars.CLOUD_RUN_SERVICE_NAME }}`）
+- **GitHub Environments**: 「各環境の実際の値」
+
+新しい検証環境を足すときは、Environment を 1 つ作って Variables / Secrets を登録すればよく、ワークフロー変更は最小で済みます。
+
+## Environment ごとの値のイメージ
+
+同じキー名で、値だけ Environment ごとに変える例です（値は架空）。
+
+| Variable | develop5 | develop6 |
+| --- | --- | --- |
+| `CLOUD_RUN_SERVICE_NAME` | `contech-dev5-run-frontend` | `contech-dev6-run-frontend` |
+| `NEXT_PUBLIC_API_BASE_URL` | `https://dev5-api.example.com` | `https://dev6-api.example.com` |
+| `GCP_PROJECT_ID` | `contech-dev5` | `contech-dev6` |
+
+ワークフロー側は常に `${{ vars.CLOUD_RUN_SERVICE_NAME }}` のまま。切り替えは Run workflow の Environment 選択だけです。
+
+## ローカル開発との対応
+
+| 環境 | 設定の置き場 |
 | --- | --- |
-| Variables | `CLOUD_RUN_SERVICE_NAME`, `NEXT_PUBLIC_API_BASE_URL`, `GCP_PROJECT_ID`, `GCP_REGION` |
-| Secrets | `GCP_SERVICE_ACCOUNT_KEY`, `KEYCLOAK_CLIENT_SECRET`, `INTERNAL_TOKEN` |
+| ローカル | `.env.local` / `npm run dev:dev5` など |
+| CI/CD | GitHub Environments の Variables / Secrets |
 
-ワークフロー内では `vars.*` / `secrets.*` で参照します。
-ジョブに `environment: ${{ inputs.environment }}` を付けることで、選択した環境の値が自動的に解決されます。
+二重管理になりがちですが、`NEXT_PUBLIC_API_BASE_URL` など **キー名を揃えておく**と、どの環境の値か追いやすくなります。
+
+## 将来足せる安全装置（任意）
+
+GitHub Environments には、デプロイ前の **Required reviewers**（承認必須）や **Deployment branches**（特定ブランチのみ許可）も設定できます。
+
+本番 `production` Environment に Required reviewers を付けるのは、手動デプロイ運用でもよくある次の一手です。
 
 ## 設定場所
 
 GitHub リポジトリ → **Settings** → **Environments** → 対象環境 → **Environment variables** / **Environment secrets**
-
-ここに環境差分を寄せるのがポイントです。ワークフロー YAML に dev5 用・dev6 用の値をベタ書きしない。
 
 :::message
 メンテナンス用の環境変数（`MAINTENANCE_*` など）だけは Cloud Run 側で直接管理しており、CD ワークフローでは上書きしません。
@@ -229,6 +330,7 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 - ブランチと環境の対応は **運用ルール** で管理（自動マッピングなし）
 - 複数検証環境 + 統合ブランチ運用では、この方式は一般的かつ実用的
 - 環境差分は GitHub Environments の Variables / Secrets で切り替える
+- **キー名は全 Environment で共通、値だけ環境ごとに異なる** — ワークフロー YAML に if 分岐は不要
 
 「push したら自動で行くんでしょ？」と思っていた頃の自分に教えてあげたい内容でした。
 同じように複数検証環境を運用している方の参考になれば嬉しいです。
