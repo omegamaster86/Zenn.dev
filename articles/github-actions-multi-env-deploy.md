@@ -13,13 +13,9 @@ publication_name: "genai"
 いや〜もう9月も半ばですね〜
 今年の夏は去年ほど暑くなくてよかったなと思っているオメガマスターです〜
 
-今回担当しているプロジェクトでは、検証環境が **develop1〜６ / staging1〜６ / production** と複数並立しています。そんなにいる？って意見はまともです実際は月日が経つにつれて現在はcdevelop5、６ / staging5、６ / production**の5つのみ動いております。
+今回担当しているプロジェクトでは、検証環境が **develop1〜６ / staging1〜６ / production** と複数並立しています。そんなにいる？って意見はまともです実際は月日が経つにつれて現在は**develop5、６ / staging5、６ / production**の5つのみ動いております。
 今までやったことある環境分けはVercelの環境で、**develop,uat,production**の３つの環境分けだったので、かなり新鮮でした。
 今回は実際に運用している**手動トリガー + GitHub Environments** という方式で、任意のブランチを任意の環境に載せる設計について解説していきたいと思います。
-
-:::message
-対象は ntv-contech/frontend です。backend も同じパターン（`workflow_dispatch` + Environments）で動いています。
-:::
 
 # やりたいこと
 
