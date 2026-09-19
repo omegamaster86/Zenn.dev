@@ -81,7 +81,9 @@ on:
 
 # ジョブ構成（2段階）
 
-デプロイは2段階のジョブで実行されます。
+デプロイは2段階のジョブで実行されます。Job 1 で Artifact Registry にイメージを push し、Job 2 が `needs: build-and-push` で **同じ commit SHA タグのイメージ** を Cloud Run に載せます。
+
+両ジョブに `environment: ${{ inputs.environment }}` があるのは、**選択した Environment の Variables / Secrets を、ビルド時・デプロイ時の両方で参照するため** です。
 
 ## Job 1: Build and Push
 
@@ -98,7 +100,7 @@ build-and-push:
 3. 環境ごとの build-arg で Docker イメージをビルド
 4. Artifact Registry に push（タグは commit の short SHA）
 
-Next.js の `NEXT_PUBLIC_*` など、ビルド時に埋め込む値は **環境ごとの Variables** から渡します。
+Next.js の `NEXT_PUBLIC_*` など、**クライアントに埋め込む値**は Job 1 の Docker build で `--build-arg` として渡します。ビルド時にイメージへ焼き込むタイミングで注入される、というイメージです。
 
 ```yaml
 docker build \
@@ -118,12 +120,16 @@ deploy:
 
 `gcloud run deploy` で、環境ごとに定義された Cloud Run サービスへ反映します。
 
+**サーバー側だけで使う値**（`INTERNAL_*` など）は Job 2 で `--update-env-vars` として付与します。Job 1 で焼き込んだ値と、Job 2 でランタイム注入する値が分かれている点がポイントです。
+
 ```yaml
 gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
   --image=.../frontend:${{ needs.build-and-push.outputs.sha_short }} \
   --region=${{ vars.GCP_REGION }} \
   --memory=${{ vars.MEMORY }} \
   --cpu=${{ vars.CPU }} \
+  --update-env-vars="INTERNAL_TOKEN=..." \
+  --update-env-vars="INTERNAL_API_BASE_URL=..." \
   # ...
 ```
 
@@ -145,7 +151,11 @@ gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
 
 GitHub リポジトリ → **Settings** → **Environments** → 対象環境 → **Environment variables** / **Environment secrets**
 
-ここに環境差分を全部寄せるのがポイントです。ワークフロー YAML に dev5 用・dev6 用の値をベタ書きしない。
+ここに環境差分を寄せるのがポイントです。ワークフロー YAML に dev5 用・dev6 用の値をベタ書きしない。
+
+:::message
+メンテナンス用の環境変数（`MAINTENANCE_*` など）だけは Cloud Run 側で直接管理しており、CD ワークフローでは上書きしません。
+:::
 
 # 実際のデプロイ手順
 
@@ -163,7 +173,7 @@ GitHub リポジトリ → **Settings** → **Environments** → 対象環境 �
 | Environment | どの Cloud Run 環境に載せるか |
 
 :::message
-PR をマージしただけではデプロイされません。「今 dev6 に何が載っているか」は Actions の実行履歴を見る必要があります。
+PR をマージしただけではデプロイされません。「今 dev6 に何が載っているか」は Actions の実行履歴（Branch・Environment・commit SHA）や、完了時の Deployment summary（Service URL など）を確認します。
 :::
 
 # ブランチと環境の対応（運用ルール）
@@ -189,7 +199,7 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 | push/merge で自動デプロイ | SaaS、小〜中規模、CI/CD が成熟したチーム | 使っていない |
 | 手動 + 環境選択 | 複数検証環境、統合ブランチ運用 | **採用** |
 | GitOps (Argo CD 等) | K8s、大規模インフラ | 使っていない |
-| タグ/リリースで本番のみ自動 | 本番は自動、検証は手動 | 一部あり |
+| タグ/リリースで本番のみ自動 | 本番は自動、検証は手動 | 使っていない |
 
 ## メリット
 
@@ -219,6 +229,7 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 # まとめ
 
 - 本プロジェクトのデプロイは **手動 `workflow_dispatch` + GitHub Environments** で実現している
+- Job 1 で **ビルド時注入**、Job 2 で **ランタイム注入** と役割を分けている
 - ブランチと環境の対応は **運用ルール** で管理（自動マッピングなし）
 - 複数検証環境 + 統合ブランチ運用では、この方式は一般的かつ実用的
 - 環境差分は GitHub Environments の Variables / Secrets で切り替える
