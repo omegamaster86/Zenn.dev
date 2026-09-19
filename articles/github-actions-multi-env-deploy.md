@@ -45,10 +45,6 @@ flowchart LR
 「ブランチ名 = 環境」という自動マッピングは **ありません**。
 任意のブランチを、手動で選んだ環境にデプロイする設計です。
 
-:::message
-Vercel や Netlify の「main に merge したら自動デプロイ」とは違う方式です。複数検証環境 + 統合ブランチ運用では、この手動方式はかなり一般的です。
-:::
-
 # ワークフローの定義
 
 `.github/workflows/deploy.yml` のトリガー部分はこうなっています。
@@ -87,10 +83,70 @@ build-and-push:
   environment: ${{ inputs.environment }}
 ```
 
-1. 選択されたブランチを checkout
-2. GCP 認証（`secrets.GCP_SERVICE_ACCOUNT_KEY`）
-3. `${{ vars.* }}` / `${{ secrets.* }}` を build-arg に渡して Docker イメージをビルド
-4. Artifact Registry に push（タグは commit の short SHA）
+Job 1 は **「GitHub の一時 VM 上で、選んだブランチのコードを、選んだ Environment の設定でビルドし、GCP のイメージ置き場に保存する」** ジョブです。
+
+### 登場人物（どこで何が動くか）
+
+```mermaid
+flowchart LR
+  subgraph GH["GitHub"]
+    B[選んだブランチのコード]
+    E[Environment の vars / secrets]
+  end
+  subgraph VM["GitHub Actions VM<br/>ubuntu-latest"]
+    J1[Job 1: build-and-push]
+  end
+  subgraph GCP["GCP"]
+    AR[Artifact Registry<br/>Docker イメージ置き場]
+  end
+  B --> J1
+  E --> J1
+  J1 --> AR
+```
+
+| 場所 | 役割 |
+| --- | --- |
+| **GitHub リポジトリ** | Run workflow で選んだ **Branch** のソースコード |
+| **GitHub Environment** | Run workflow で選んだ **Environment** の Variables / Secrets |
+| **GitHub Actions VM** | Job 1 が動く一時的な Linux マシン（終わったら消える） |
+| **Artifact Registry** | ビルドした Docker イメージの保管庫（GCP 上） |
+
+:::message
+**Branch**（どのコード）と **Environment**（どの設定）は独立しています。`feature/foo` ブランチを `develop6` に載せることも、`develop5` に載せることもできます。
+:::
+
+### 4ステップの詳細
+
+#### 1. 選択されたブランチを checkout
+
+Run workflow で選んだブランチ（例: `feature/streaming`）のソースが、VM の作業ディレクトリにダウンロードされます。
+
+```
+GitHub リポジトリ
+  feature/streaming  ← Branch で選んだ
+        │
+        ▼ actions/checkout
+  VM: /home/runner/work/frontend/frontend/
+```
+
+#### 2. GCP 認証（`secrets.GCP_SERVICE_ACCOUNT_KEY`）
+
+VM が GCP に「自分は push 権限を持つサービスアカウントです」と証明します。これがないと Artifact Registry に `docker push` できません。
+
+```
+Environment の Secrets
+  GCP_SERVICE_ACCOUNT_KEY（JSON 鍵）
+        │
+        ▼ google-github-actions/auth
+  gcloud コマンドが使える状態になる
+        │
+        ▼ gcloud auth configure-docker
+  docker push も通る
+```
+
+#### 3. `${{ vars.* }}` / `${{ secrets.* }}` を build-arg に渡して Docker イメージをビルド
+
+ここが一番ポイントです。`environment: ${{ inputs.environment }}` があるので、**選んだ Environment に登録された値だけ** が `${{ vars.* }}` / `${{ secrets.* }}` に解決されます。
 
 ```yaml
 docker build \
@@ -99,6 +155,83 @@ docker build \
   # ... 他の build-arg
   -t "$IMAGE_TAG" .
 ```
+
+`Dockerfile` 側では、build-arg → ENV → `npm run build` という流れです。
+
+```
+develop6 の Variables / Secrets
+  NEXT_PUBLIC_API_BASE_URL = https://dev6-api.example.com
+  NEXT_PUBLIC_APP_URL      = https://dev6.example.com
+  KEYCLOAK_CLIENT_SECRET   = (秘密)
+        │
+        ▼ --build-arg で渡す
+  Docker builder ステージ
+    ENV に設定 → npm run build
+    → .next/ に dev6 向けの JS が生成される
+        │
+        ▼
+  Docker runner ステージ
+    node server.js が動く最小イメージ
+```
+
+`NEXT_PUBLIC_*` は Next.js のビルド成果物に **焼き込まれる** ので、**develop5 と develop6 では同じ commit でも別イメージ** になります。
+
+#### 4. Artifact Registry に push（タグは commit の short SHA）
+
+ビルドしたイメージに名前を付けて GCP にアップロードします。
+
+```
+asia-northeast1-docker.pkg.dev/contech-dev6/my-repo/frontend:a1b2c3d
+│                              │            │         │      └─ git rev-parse --short HEAD
+│                              │            │         └─ イメージ名（frontend）
+│                              │            └─ リポジトリ名（Environment の vars）
+│                              └─ GCP プロジェクト（Environment の vars）
+└─ リージョン付きレジストリ URL（Environment の vars）
+```
+
+- **レジストリの場所** → Environment の `ARTIFACT_REGISTRY_URL` / `GCP_PROJECT_ID` / `ARTIFACT_REGISTRY_REPO`
+- **タグ** → commit の short SHA（例: `a1b2c3d`）
+- Job 2 はこのタグを指定して Cloud Run に載せる
+
+### 具体例: develop6 に feature/foo をデプロイ
+
+```
+[Run workflow]
+  Branch:      feature/foo
+  Environment: develop6
+        │
+        ▼
+[Job 1: ubuntu-latest VM]
+  1. feature/foo を checkout
+  2. develop6 の SA 鍵で GCP 認証
+  3. develop6 の vars/secrets を build-arg に入れて docker build
+     → dev6 API URL が埋め込まれた Next.js イメージができる
+  4. .../frontend:a1b2c3d を Artifact Registry に push
+        │
+        ▼
+[Job 2]（次のセクション）
+  gcloud run deploy contech-dev6-run-frontend
+    --image=.../frontend:a1b2c3d
+```
+
+### よくある誤解
+
+| 思いがち | 実際 |
+| --- | --- |
+| push したら自動デプロイされる | 手動 `workflow_dispatch` のみ |
+| ブランチ名で環境が決まる | Branch と Environment は別々に選ぶ |
+| 1つのイメージを全環境で共有できる | `NEXT_PUBLIC_*` が違うので環境ごとに別イメージ |
+| build-arg は起動時に変わる | ビルド時に焼き込み。変えるには再ビルドが必要 |
+| Job 1 で Cloud Run が動く | Job 1 はビルド＋push だけ。起動は Job 2 |
+
+### ローカル開発との対応
+
+| ローカル | CI（Job 1） |
+| --- | --- |
+| `npm run dev:dev6` | Environment = `develop6` を選ぶ |
+| `.env.local` の値 | GitHub Environment の Variables / Secrets |
+| `npm run build` | Docker 内の `npm run build` |
+| `npm start` | Job 2 で Cloud Run が `node server.js` を起動 |
 
 ## Job 2: Deploy to Cloud Run
 
