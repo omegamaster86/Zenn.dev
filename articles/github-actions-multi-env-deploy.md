@@ -75,6 +75,7 @@ on:
 | --- | --- |
 | `develop5` | dev5 検証環境 |
 | `develop6` | dev6 検証環境 |
+| `staging5` | stg5 統合検証環境 |
 | `staging6` | stg6 統合検証環境 |
 | `production` | 本番環境 |
 
