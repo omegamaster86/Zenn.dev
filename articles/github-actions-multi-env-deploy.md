@@ -73,7 +73,7 @@ on:
 
 # ジョブ構成（2段階）
 
-デプロイは2段階のジョブで実行されます。Job 1 で Artifact Registry にイメージを push し、Job 2 が `needs: build-and-push` で **同じ commit SHA タグのイメージ** を Cloud Run に載せます。両ジョブに `environment: ${{ inputs.environment }}` を付け、選択した Environment の設定を参照します（仕組みの詳細は次章）。
+デプロイは2段階のジョブで実行されます。Job 1 で Artifact Registry にイメージを push し、Job 2 が `needs: build-and-push` で **同じ commit SHA タグのイメージ** を Cloud Run に載せます。両ジョブに `environment: ${{ inputs.environment }}` を付け、選択した Environment の設定を参照します（仕組みの詳細は [GitHub Environments の役割](#github-environments-の役割)）。
 
 ## Job 1: Build and Push
 
@@ -159,7 +159,7 @@ Environment の Secrets
 
 #### 3. `${{ vars.* }}` / `${{ secrets.* }}` を build-arg に渡して Docker イメージをビルド
 
-ここが一番ポイントです。build-arg に渡す値は、Run workflow で選んだ Environment の vars / secrets から解決されます（仕組みは「GitHub Environments の役割」の章）。
+ここが一番ポイントです。build-arg に渡す値は、Run workflow で選んだ Environment の vars / secrets から解決されます（仕組みは [GitHub Environments の役割](#github-environments-の役割) の章）。
 
 ```yaml
 docker build \
