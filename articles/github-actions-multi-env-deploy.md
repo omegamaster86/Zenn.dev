@@ -45,14 +45,6 @@ flowchart LR
 「ブランチ名 = 環境」という自動マッピングは **ありません**。
 任意のブランチを、手動で選んだ環境にデプロイする設計です。
 
-## なぜDockerが必要？
-
-上の図に「Docker ビルド」が出てきますが、ローカル開発では Docker を使っていません。CI/CD で Docker が出てくるのは、**デプロイ先が Cloud Run だから**です。
-
-Cloud Run は **コンテナしか受け付けない** プラットフォームです。Next.js アプリを載せるには、動かせる形（Docker イメージ）にパッケージする必要があります。Docker は開発ツールではなく、**本番に載せるための箱**です。
-
-`Dockerfile` はこの「箱づくり」の手順書です。`next.config.ts` の `output: 'standalone'` により本番用の `server.js` が生成され、CI 上で `docker build` → Artifact Registry → Cloud Run という流れになります（ビルドの詳細は Job 1 の章）。以前使っていた Vercel では Git push するだけで済んで Docker を意識しませんでしたが、Cloud Run は「コンテナを渡してね」というモデルです。
-
 # ワークフローの定義
 
 `.github/workflows/deploy.yml` のトリガー部分はこうなっています。
@@ -118,6 +110,14 @@ flowchart LR
 | **GitHub Environment** | Run workflow で選んだ **Environment** の Variables / Secrets |
 | **GitHub Actions VM** | Job 1 が動く一時的な Linux マシン。ここで `docker build` する（終わったら消える） |
 | **Artifact Registry** | ビルドした Docker イメージ（箱）の保管庫（GCP 上） |
+
+### なぜDockerが必要？
+
+上の図に「Docker ビルド」が出てきますが、ローカル開発では Docker を使っていません。CI/CD で Docker が出てくるのは、**デプロイ先が Cloud Run だから**です。
+
+Cloud Run は **コンテナしか受け付けない** プラットフォームです。Next.js アプリを載せるには、動かせる形（Docker イメージ）にパッケージする必要があります。Docker は開発ツールではなく、**本番に載せるための箱**です。
+
+`Dockerfile` はこの「箱づくり」の手順書です。`next.config.ts` の `output: 'standalone'` により本番用の `server.js` が生成され、CI 上で `docker build` → Artifact Registry → Cloud Run という流れになります。
 
 ### 4ステップの詳細
 
