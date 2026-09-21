@@ -123,7 +123,7 @@ Cloud Run は **コンテナしか受け付けない** プラットフォーム�
 
 #### 1. 選択されたブランチを checkout
 
-Run workflow で選んだブランチ（例: `BBB`）のソースが、VM の作業ディレクトリにダウンロードされます。
+Run workflow で選んだブランチ（例: `BBB`）のソースが、Job 1 の最初のステップ `actions/checkout@v4` により VM の作業ディレクトリに checkout されます。内部的には `git clone` + `checkout` と同じ動きです。
 
 ```
 GitHub リポジトリ
@@ -132,6 +132,15 @@ GitHub リポジトリ
         ▼ actions/checkout
   VM: /home/runner/work/frontend/frontend/
 ```
+
+1. 空の Ubuntu VM（`ubuntu-latest`）が起動する
+2. `actions/checkout` が GitHub からリポジトリを取得する
+3. 選んだブランチ `BBB` の最新コミットのファイル一式が VM 上に置かれる
+4. 置き場所は `/home/runner/work/<リポジトリ名>/<リポジトリ名>/`（本プロジェクトでは `frontend/frontend`）
+
+ローカルで `git clone` して `git checkout BBB` したときと同様に、VM 上に `package.json`・`src/`・`Dockerfile` などが揃います。その後、同じディレクトリで `docker build` が実行されるので、**ビルド対象は選んだブランチ `BBB` のコード**になります。Job が終わったら VM ごと破棄されます。
+
+Branch は「どのコードをビルドするか」、Environment は「どの設定値でビルド・デプロイするか」——別々に選びます。
 
 #### 2. GCP 認証（`secrets.GCP_SERVICE_ACCOUNT_KEY`）
 
