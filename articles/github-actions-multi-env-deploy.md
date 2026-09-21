@@ -187,14 +187,14 @@ develop6 の Variables / Secrets
     node server.js が動く最小イメージ
 ```
 
-`NEXT_PUBLIC_*` は Next.js のビルド成果物に **焼き込まれる** ので、**develop5 と develop6 では同じ commit でも別イメージ** になります。
+`NEXT_PUBLIC_*` はビルド時に Next.js の成果物へ埋め込まれるため、**環境ごとに別イメージ** をビルドする必要があります。
 
 #### 4. Artifact Registry に push（タグは commit の short SHA）
 
 ビルドしたイメージに名前を付けて GCP にアップロードします。
 
 ```
-asia-northeast1-docker.pkg.dev/contech-dev6/my-repo/frontend:a1b2c3d
+asia-northeast1-docker.pkg.dev/dev6/my-repo/frontend:a1b2c3d
 │                              │            │         │      └─ git rev-parse --short HEAD
 │                              │            │         └─ イメージ名（frontend）
 │                              │            └─ リポジトリ名（Environment の vars）
@@ -205,16 +205,6 @@ asia-northeast1-docker.pkg.dev/contech-dev6/my-repo/frontend:a1b2c3d
 - **レジストリの場所** → Environment の `ARTIFACT_REGISTRY_URL` / `GCP_PROJECT_ID` / `ARTIFACT_REGISTRY_REPO`
 - **タグ** → commit の short SHA（例: `a1b2c3d`）
 - Job 2 はこのタグを指定して Cloud Run に載せる
-
-### よくある誤解
-
-| 思いがち | 実際 |
-| --- | --- |
-| push したら自動デプロイされる | 手動 `workflow_dispatch` のみ |
-| ブランチ名で環境が決まる | Branch と Environment は別々に選ぶ |
-| 1つのイメージを全環境で共有できる | `NEXT_PUBLIC_*` が違うので環境ごとに別イメージ |
-| build-arg は起動時に変わる | ビルド時に焼き込み。変えるには再ビルドが必要 |
-| Job 1 で Cloud Run が動く | Job 1 はビルド＋push だけ。起動は Job 2 |
 
 ## Job 2: Deploy to Cloud Run
 
@@ -237,7 +227,7 @@ gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
   # ...
 ```
 
-環境ごとに **別の Cloud Run サービス**（例: `contech-dev5-run-frontend` / `contech-dev6-run-frontend`）にデプロイされます。
+環境ごとに **別の Cloud Run サービス**（例: `dev5-run-frontend` / `dev6-run-frontend`）にデプロイされます。
 
 # GitHub Environments の役割
 
@@ -266,38 +256,6 @@ flowchart TD
 | **Secrets** | `${{ secrets.XXX }}` | 機密情報 | GCP SA 鍵、Keycloak client secret、内部トークン |
 
 Secrets は GitHub UI 上で値を再表示できず、Actions ログでもマスクされます。パスワードや JSON 鍵は Variables ではなく Secrets に入れます。
-
-## 本プロジェクトで参照している一覧
-
-`deploy.yml` から逆引きした、Environment ごとに登録が必要なキーです。
-
-### Variables（`${{ vars.* }}`）
-
-| カテゴリ | キー名 | 主な用途 |
-| --- | --- | --- |
-| GCP / Registry | `GCP_PROJECT_ID` | GCP プロジェクト |
-| | `GCP_REGION` | Cloud Run リージョン |
-| | `ARTIFACT_REGISTRY_URL` | イメージ push 先 |
-| | `ARTIFACT_REGISTRY_REPO` | リポジトリ名 |
-| Cloud Run | `CLOUD_RUN_SERVICE_NAME` | デプロイ先サービス名 |
-| | `PORT`, `MEMORY`, `CPU` | コンテナスペック |
-| | `MIN_INSTANCES`, `MAX_INSTANCES` | スケール設定 |
-| フロント（ビルド時） | `NEXT_PUBLIC_APP_URL` | アプリ URL |
-| | `NEXT_PUBLIC_API_BASE_URL` | 公開 API URL |
-| | `NEXT_PUBLIC_PROJECT_ID`, `NEXT_PUBLIC_LOCATION` | GCP 関連（クライアント向け） |
-| | `NEXT_PUBLIC_KEYCLOAK_*` | Keycloak 設定（6 キー） |
-| | `NEXT_PUBLIC_FIREBASE_*` | Firebase 設定（7 キー） |
-| エージェント | `A2A_ENDPOINT_URL`, `AGENT_ENGINE_ID` | エージェント連携 |
-| その他 | `NODE_ENV` | ビルド時の NODE_ENV |
-| サーバー（ランタイム） | `INTERNAL_API_BASE_URL` | 内部 API URL（Job 2 で注入） |
-
-### Secrets（`${{ secrets.* }}`）
-
-| キー名 | 注入タイミング | 用途 |
-| --- | --- | --- |
-| `GCP_SERVICE_ACCOUNT_KEY` | Job 1 / Job 2 | GCP 認証 |
-| `KEYCLOAK_CLIENT_SECRET` | Job 1（build-arg） | Keycloak 認証 |
-| `INTERNAL_TOKEN` | Job 2（`--update-env-vars`） | 内部 API トークン |
 
 ## ビルド時注入 vs ランタイム注入
 
@@ -335,9 +293,9 @@ if: inputs.environment == 'develop5'
 
 | Variable | develop5 | develop6 |
 | --- | --- | --- |
-| `CLOUD_RUN_SERVICE_NAME` | `contech-dev5-run-frontend` | `contech-dev6-run-frontend` |
+| `CLOUD_RUN_SERVICE_NAME` | `dev5-run-frontend` | `dev6-run-frontend` |
 | `NEXT_PUBLIC_API_BASE_URL` | `https://dev5-api.example.com` | `https://dev6-api.example.com` |
-| `GCP_PROJECT_ID` | `contech-dev5` | `contech-dev6` |
+| `GCP_PROJECT_ID` | `dev5` | `dev6` |
 
 ワークフロー側は常に `${{ vars.CLOUD_RUN_SERVICE_NAME }}` のまま。切り替えは Run workflow の Environment 選択だけです。
 
@@ -380,20 +338,6 @@ GitHub リポジトリ → **Settings** → **Environments** → 対象環境 �
 PR をマージしただけではデプロイされません。「今 dev6 に何が載っているか」は Actions の実行履歴（Branch・Environment・commit SHA）や、完了時の Deployment summary（Service URL など）を確認します。
 :::
 
-# ブランチと環境の対応（運用ルール）
-
-自動マッピングはなく、チームの運用ルールで決めています。デプロイ例:
-
-| ブランチ | デプロイ先 Environment |
-| --- | --- |
-| `AAA` | `staging6` |
-| `BBB` | `develop6` |
-| `CCC` | `develop5` または `production` |
-
-`AAA` を staging6 に載せて動作確認し、`BBB` は develop6 で個別検証する、といった運用が典型的です（名前は適当な例です）。
-
-統合 PR には `do-not-merge` ラベルが付いていて、マージ禁止の使い捨てブランチとして動作確認に使われます。この運用と手動デプロイは相性がいいです。
-
 # 他のデプロイ方式との比較
 
 | 方式 | よくある場面 | 本プロジェクト |
@@ -415,10 +359,6 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 - 毎回人手が必要（「デプロイして」がボトルネックになりやすい）
 - ブランチと環境の対応は運用ルール依存（自動化されていない）
 - PR マージ ≠ デプロイなので、「今 dev6 に何が載っているか」は Actions の履歴を確認する必要がある
-
-:::message alert
-「古い」方式というより **制御重視** の設計です。スタートアップの自動デプロイ一択とは違いますが、複数検証環境 + 統合ブランチ運用では十分一般的です。
-:::
 
 # よくある進化パターン
 
