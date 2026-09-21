@@ -123,11 +123,11 @@ Cloud Run は **コンテナしか受け付けない** プラットフォーム�
 
 #### 1. 選択されたブランチを checkout
 
-Run workflow で選んだブランチ（例: `feature/streaming`）のソースが、VM の作業ディレクトリにダウンロードされます。
+Run workflow で選んだブランチ（例: `BBB`）のソースが、VM の作業ディレクトリにダウンロードされます。
 
 ```
 GitHub リポジトリ
-  feature/streaming  ← Branch で選んだ
+  BBB  ← Branch で選んだ
         │
         ▼ actions/checkout
   VM: /home/runner/work/frontend/frontend/
@@ -363,7 +363,7 @@ GitHub リポジトリ → **Settings** → **Environments** → 対象環境 �
 
 1. GitHub → **Actions** → **CD - Frontend Deployment**
 2. **Run workflow** をクリック
-3. **Branch**: デプロイしたいブランチを選択（例: `stg6/integration-202609-v1`）
+3. **Branch**: デプロイしたいブランチを選択（例: `AAA`）
 4. **Environment**: デプロイ先を選択（例: `staging6`）
 5. **Run workflow** で実行
 
@@ -377,11 +377,11 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 
 | ブランチ | デプロイ先 Environment |
 | --- | --- |
-| `stg6/integration-202609-v1` | `staging6` |
-| `feature/streaming-progress-episode-count` | `develop6` |
-| `release-202609-v3` | `develop5` または `production` |
+| `AAA` | `staging6` |
+| `BBB` | `develop6` |
+| `CCC` | `develop5` または `production` |
 
-統合ブランチ（`stg6/integration-*`）を staging6 に載せて動作確認し、feature ブランチは develop6 で個別検証する、といった運用が典型的です。
+`AAA` を staging6 に載せて動作確認し、`BBB` は develop6 で個別検証する、といった運用が典型的です（名前は適当な例です）。
 
 統合 PR には `do-not-merge` ラベルが付いていて、マージ禁止の使い捨てブランチとして動作確認に使われます。この運用と手動デプロイは相性がいいです。
 
@@ -398,7 +398,7 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 
 - **任意ブランチを任意環境に載せられる** — 統合ブランチや feature ブランチを柔軟に検証できる
 - **事故が少ない** — push 連動だと「間違ったブランチが本番に行く」リスクがある
-- **複数 feature の統合テスト向き** — `stg6/integration-*` のような統合ブランチ運用と相性が良い
+- **複数 feature の統合テスト向き** — `AAA` のような統合ブランチ運用と相性が良い
 - **環境ごとの設定が GitHub に集約** — コードとインフラ設定の対応が明確
 
 ## デメリット
