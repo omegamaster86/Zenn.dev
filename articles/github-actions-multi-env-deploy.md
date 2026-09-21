@@ -85,6 +85,46 @@ build-and-push:
 
 Job 1 は **「GitHub の一時 VM 上で、選んだブランチのコードを、選んだ Environment の設定でビルドし、GCP のイメージ置き場に保存する」** ジョブです。
 
+### ちなみに何で Docker が必要？
+
+ローカル開発では Docker を使っていません。`npm run dev:dev6` で Mac 上の Node.js が `next dev` を動かすだけです。それなのに CI/CD では Docker が出てくるのは、**デプロイ先が Cloud Run だから**です。
+
+| 場面 | 何で動かすか |
+| --- | --- |
+| **ローカル開発** | Mac 上で `npm run dev:dev6`（Next.js 開発サーバー） |
+| **検証環境（dev6 など）** | GCP Cloud Run 上で **Docker コンテナ** |
+
+Cloud Run は **コンテナしか受け付けない** プラットフォームなので`Dockerfile` と CI のビルドが必要みたいです。Next.js アプリを載せるには、動かせる形（Docker イメージ）にパッケージする必要があります。Docker は開発ツールではなく、**本番に載せるための箱**です。
+
+
+```
+【ローカル開発】
+  .env.local.dev6
+       │
+       ▼
+  npm run dev:dev6  →  next dev（Mac 上の Node.js）
+       │
+       └── Docker は使わない
+
+
+【CI/CD → 検証環境】
+  GitHub Environment (develop6 の vars/secrets)
+       │
+       ▼
+  docker build（GitHub Actions VM 内）
+    ├─ npm ci
+    ├─ npm run build（dev6 向けに焼き込み）
+    └─ node server.js が動くイメージ
+       │
+       ▼
+  Artifact Registry に push
+       │
+       ▼
+  Cloud Run がイメージを pull して起動
+```
+
+`Dockerfile` はこの「箱づくり」の手順書です。`next.config.ts` の `output: 'standalone'` により本番用の `server.js` が生成され、最終的に `node server.js` で起動する最小イメージになります。ローカルで本番に近い動きを試すなら `npm run build:dev6 && npm run start` ですが、CI では同じことを Docker 内で行い、その結果を Cloud Run に渡します。
+
 ### 登場人物（どこで何が動くか）
 
 ```mermaid
@@ -108,8 +148,8 @@ flowchart LR
 | --- | --- |
 | **GitHub リポジトリ** | Run workflow で選んだ **Branch** のソースコード |
 | **GitHub Environment** | Run workflow で選んだ **Environment** の Variables / Secrets |
-| **GitHub Actions VM** | Job 1 が動く一時的な Linux マシン（終わったら消える） |
-| **Artifact Registry** | ビルドした Docker イメージの保管庫（GCP 上） |
+| **GitHub Actions VM** | Job 1 が動く一時的な Linux マシン。ここで `docker build` する（終わったら消える） |
+| **Artifact Registry** | ビルドした Docker イメージ（箱）の保管庫（GCP 上） |
 
 :::message
 **Branch**（どのコード）と **Environment**（どの設定）は独立しています。`feature/foo` ブランチを `develop6` に載せることも、`develop5` に載せることもできます。
