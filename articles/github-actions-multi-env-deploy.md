@@ -45,6 +45,14 @@ flowchart LR
 「ブランチ名 = 環境」という自動マッピングは **ありません**。
 任意のブランチを、手動で選んだ環境にデプロイする設計です。
 
+## なぜDockerが必要？
+
+上の図に「Docker ビルド」が出てきますが、ローカル開発では Docker を使っていません。CI/CD で Docker が出てくるのは、**デプロイ先が Cloud Run だから**です。
+
+Cloud Run は **コンテナしか受け付けない** プラットフォームです。Next.js アプリを載せるには、動かせる形（Docker イメージ）にパッケージする必要があります。Docker は開発ツールではなく、**本番に載せるための箱**です。
+
+`Dockerfile` はこの「箱づくり」の手順書です。`next.config.ts` の `output: 'standalone'` により本番用の `server.js` が生成され、CI 上で `docker build` → Artifact Registry → Cloud Run という流れになります（ビルドの詳細は Job 1 の章）。以前使っていた Vercel では Git push するだけで済んで Docker を意識しませんでしたが、Cloud Run は「コンテナを渡してね」というモデルです。
+
 # ワークフローの定義
 
 `.github/workflows/deploy.yml` のトリガー部分はこうなっています。
@@ -83,47 +91,7 @@ build-and-push:
   environment: ${{ inputs.environment }}
 ```
 
-Job 1 は **「GitHub の一時 VM 上で、選んだブランチのコードを、選んだ Environment の設定でビルドし、GCP のイメージ置き場に保存する」** ジョブです。
-
-### ちなみに何で Docker が必要？
-
-ローカル開発では Docker を使っていません。`npm run dev:dev6` で Mac 上の Node.js が `next dev` を動かすだけです。それなのに CI/CD では Docker が出てくるのは、**デプロイ先が Cloud Run だから**です。
-
-| 場面 | 何で動かすか |
-| --- | --- |
-| **ローカル開発** | Mac 上で `npm run dev:dev6`（Next.js 開発サーバー） |
-| **検証環境（dev6 など）** | GCP Cloud Run 上で **Docker コンテナ** |
-
-Cloud Run は **コンテナしか受け付けない** プラットフォームなので`Dockerfile` と CI のビルドが必要みたいです。Next.js アプリを載せるには、動かせる形（Docker イメージ）にパッケージする必要があります。Docker は開発ツールではなく、**本番に載せるための箱**です。
-
-
-```
-【ローカル開発】
-  .env.local.dev6
-       │
-       ▼
-  npm run dev:dev6  →  next dev（Mac 上の Node.js）
-       │
-       └── Docker は使わない
-
-
-【CI/CD → 検証環境】
-  GitHub Environment (develop6 の vars/secrets)
-       │
-       ▼
-  docker build（GitHub Actions VM 内）
-    ├─ npm ci
-    ├─ npm run build（dev6 向けに焼き込み）
-    └─ node server.js が動くイメージ
-       │
-       ▼
-  Artifact Registry に push
-       │
-       ▼
-  Cloud Run がイメージを pull して起動
-```
-
-`Dockerfile` はこの「箱づくり」の手順書です。`next.config.ts` の `output: 'standalone'` により本番用の `server.js` が生成され、最終的に `node server.js` で起動する最小イメージになります。ローカルで本番に近い動きを試すなら `npm run build:dev6 && npm run start` ですが、CI では同じことを Docker 内で行い、その結果を Cloud Run に渡します。
+Job 1 は **「GitHub の一時 VM 上で、選んだブランチのコードを、選んだ Environment の設定でビルドし、GCP のイメージ置き場に保存する」** ジョブです。上の「全体の流れ」図の **D（Docker ビルド）〜 E（Artifact Registry に push）** がこの Job 1 の仕事です。
 
 ### 登場人物（どこで何が動くか）
 
@@ -150,10 +118,6 @@ flowchart LR
 | **GitHub Environment** | Run workflow で選んだ **Environment** の Variables / Secrets |
 | **GitHub Actions VM** | Job 1 が動く一時的な Linux マシン。ここで `docker build` する（終わったら消える） |
 | **Artifact Registry** | ビルドした Docker イメージ（箱）の保管庫（GCP 上） |
-
-:::message
-**Branch**（どのコード）と **Environment**（どの設定）は独立しています。`feature/foo` ブランチを `develop6` に載せることも、`develop5` に載せることもできます。
-:::
 
 ### 4ステップの詳細
 
@@ -186,7 +150,7 @@ Environment の Secrets
 
 #### 3. `${{ vars.* }}` / `${{ secrets.* }}` を build-arg に渡して Docker イメージをビルド
 
-ここが一番ポイントです。`environment: ${{ inputs.environment }}` があるので、**選んだ Environment に登録された値だけ** が `${{ vars.* }}` / `${{ secrets.* }}` に解決されます。
+ここが一番ポイントです。build-arg に渡す値は、Run workflow で選んだ Environment の vars / secrets から解決されます（仕組みは「GitHub Environments の役割」の章）。
 
 ```yaml
 docker build \
@@ -233,27 +197,6 @@ asia-northeast1-docker.pkg.dev/contech-dev6/my-repo/frontend:a1b2c3d
 - **タグ** → commit の short SHA（例: `a1b2c3d`）
 - Job 2 はこのタグを指定して Cloud Run に載せる
 
-### 具体例: develop6 に feature/foo をデプロイ
-
-```
-[Run workflow]
-  Branch:      feature/foo
-  Environment: develop6
-        │
-        ▼
-[Job 1: ubuntu-latest VM]
-  1. feature/foo を checkout
-  2. develop6 の SA 鍵で GCP 認証
-  3. develop6 の vars/secrets を build-arg に入れて docker build
-     → dev6 API URL が埋め込まれた Next.js イメージができる
-  4. .../frontend:a1b2c3d を Artifact Registry に push
-        │
-        ▼
-[Job 2]（次のセクション）
-  gcloud run deploy contech-dev6-run-frontend
-    --image=.../frontend:a1b2c3d
-```
-
 ### よくある誤解
 
 | 思いがち | 実際 |
@@ -263,15 +206,6 @@ asia-northeast1-docker.pkg.dev/contech-dev6/my-repo/frontend:a1b2c3d
 | 1つのイメージを全環境で共有できる | `NEXT_PUBLIC_*` が違うので環境ごとに別イメージ |
 | build-arg は起動時に変わる | ビルド時に焼き込み。変えるには再ビルドが必要 |
 | Job 1 で Cloud Run が動く | Job 1 はビルド＋push だけ。起動は Job 2 |
-
-### ローカル開発との対応
-
-| ローカル | CI（Job 1） |
-| --- | --- |
-| `npm run dev:dev6` | Environment = `develop6` を選ぶ |
-| `.env.local` の値 | GitHub Environment の Variables / Secrets |
-| `npm run build` | Docker 内の `npm run build` |
-| `npm start` | Job 2 で Cloud Run が `node server.js` を起動 |
 
 ## Job 2: Deploy to Cloud Run
 
@@ -302,7 +236,7 @@ gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE_NAME }} \
 
 ## 「集約」とは具体的に何が起きるか
 
-Run workflow で **Environment**（例: `develop6`）を選ぶと、両ジョブの `environment: ${{ inputs.environment }}` により **develop6 に登録された値だけ** が解決されます。YAML 側に dev5 用・dev6 用の URL やサービス名は **一切書きません**。
+前章の `environment: ${{ inputs.environment }}` により、選んだ Environment の vars / secrets だけが両ジョブに渡されます。YAML 側に環境ごとの URL やサービス名は書きません。
 
 ```mermaid
 flowchart TD
@@ -314,10 +248,6 @@ flowchart TD
   E --> F[Docker build-arg]
   E --> G[gcloud run deploy]
 ```
-
-:::message
-「ブランチ名 = 環境」ではありません。**Branch** はコード、**Environment** は設定、の2軸です。
-:::
 
 ## Variables と Secrets の使い分け
 
@@ -369,8 +299,6 @@ Environment の値は、**いつアプリに渡すか**でも分かれていま�
 | **ビルド時** | Job 1: build-and-push | Docker `--build-arg` → イメージに焼き込み | `NEXT_PUBLIC_*`, `KEYCLOAK_CLIENT_SECRET` |
 | **ランタイム** | Job 2: deploy | `gcloud run deploy --update-env-vars` | `INTERNAL_TOKEN`, `INTERNAL_API_BASE_URL` |
 
-`NEXT_PUBLIC_*` は Next.js のビルド成果物に埋め込まれるため、**Environment ごとに別イメージ**になります。サーバー専用の `INTERNAL_*` は Cloud Run 起動時に Job 2 で付与します。両ジョブに `environment:` があるのは、**ビルド時・デプロイ時の両方で同じ Environment の設定を参照するため**です。
-
 ## YAML にベタ書きしない理由
 
 やらない例:
@@ -406,12 +334,16 @@ if: inputs.environment == 'develop5'
 
 ## ローカル開発との対応
 
-| 環境 | 設定の置き場 |
-| --- | --- |
-| ローカル | `.env.local` / `npm run dev:dev5` など |
-| CI/CD | GitHub Environments の Variables / Secrets |
+ローカルと CI/CD で設定の置き場が違うだけで、キー名は揃えています。
 
-二重管理になりがちですが、`NEXT_PUBLIC_API_BASE_URL` など **キー名を揃えておく**と、どの環境の値か追いやすくなります。
+| ローカル | CI/CD |
+| --- | --- |
+| `npm run dev:dev6` | Run workflow で Environment = `develop6` を選ぶ |
+| `.env.local.dev6` など | GitHub Environment の Variables / Secrets |
+| `npm run build` | Job 1: Docker 内の `npm run build` |
+| `npm start` | Job 2: Cloud Run が `node server.js` を起動 |
+
+`NEXT_PUBLIC_API_BASE_URL` など **キー名を揃えておく**と、どの環境の値か追いやすくなります。
 
 ## 将来足せる安全装置（任意）
 
@@ -435,22 +367,13 @@ GitHub リポジトリ → **Settings** → **Environments** → 対象環境 �
 4. **Environment**: デプロイ先を選択（例: `staging6`）
 5. **Run workflow** で実行
 
-実行時に選ぶのはこの2つです。
-
-| 選ぶもの | 意味 |
-| --- | --- |
-| Branch | どのブランチのコードをデプロイするか |
-| Environment | どの Cloud Run 環境に載せるか |
-
 :::message
 PR をマージしただけではデプロイされません。「今 dev6 に何が載っているか」は Actions の実行履歴（Branch・Environment・commit SHA）や、完了時の Deployment summary（Service URL など）を確認します。
 :::
 
 # ブランチと環境の対応（運用ルール）
 
-ブランチ名と環境の自動マッピングは **ありません**。チームの運用ルールで決めています。
-
-実際のデプロイ例:
+自動マッピングはなく、チームの運用ルールで決めています。デプロイ例:
 
 | ブランチ | デプロイ先 Environment |
 | --- | --- |
@@ -498,12 +421,9 @@ PR をマージしただけではデプロイされません。「今 dev6 に�
 
 # まとめ
 
-- 本プロジェクトのデプロイは **手動 `workflow_dispatch` + GitHub Environments** で実現している
-- Job 1 で **ビルド時注入**、Job 2 で **ランタイム注入** と役割を分けている
-- ブランチと環境の対応は **運用ルール** で管理（自動マッピングなし）
-- 複数検証環境 + 統合ブランチ運用では、この方式は一般的かつ実用的
-- 環境差分は GitHub Environments の Variables / Secrets で切り替える
-- **キー名は全 Environment で共通、値だけ環境ごとに異なる** — ワークフロー YAML に if 分岐は不要
+- **手動 `workflow_dispatch` + GitHub Environments** で、任意ブランチを任意環境に載せる
+- Job 1（ビルド時注入）と Job 2（ランタイム注入）の2段階で Cloud Run にデプロイ
+- 環境差分は Variables / Secrets に集約し、YAML に if 分岐は書かない
 
 「push したら自動で行くんでしょ？」と思っていた頃の自分に教えてあげたい内容でした。
 同じように複数検証環境を運用している方の参考になれば嬉しいです。
