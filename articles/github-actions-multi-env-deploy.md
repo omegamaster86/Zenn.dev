@@ -3,8 +3,8 @@ title: "複数検証環境へのデプロイ運用を GitHub Actions で整理�
 emoji: "🚀"
 type: "tech"
 topics: ["GitHubActions", "GCP", "CloudRun", "CI/CD", "Next.js"]
-published: false
-# published_at: 2026-07-26 12:30
+published: true
+published_at: 2026-09-21 16:30
 publication_name: "genai"
 ---
 
