@@ -71,7 +71,7 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 
 ---
 
-### `vite.config.ts` ← `next.config.ts`
+### `vite.config.ts` → `next.config.ts`
 
 **Next.js では:** `next.config.ts` に `images`, `rewrites`, `experimental` などを書く。ビルドは `next build` が内部で webpack / Turbopack を呼ぶ。SSR・静的生成・API Route はすべて Next のランタイムが担う。
 
@@ -107,7 +107,7 @@ export default defineConfig({
 
 ---
 
-### `src/routes/` ← `app/`
+### `src/routes/` → `app/`
 
 **Next.js では:** `app/page.tsx` が `/`、`app/api/revalidate/route.ts` が `/api/revalidate` になる。ディレクトリ名とファイル名が URL に直結する（App Router の規約ルーティング）。
 
@@ -124,7 +124,7 @@ app/api/revalidate/
 
 ---
 
-### `src/Document.tsx` ← `app/layout.tsx`（HTML 外側）
+### `src/Document.tsx` → `app/layout.tsx`（HTML 外側）
 
 **Next.js では:** `app/layout.tsx` が `<html>` / `<head>` / `<body>` を含む。`metadata` export や `next/font` もここに置くことが多い。
 
@@ -151,7 +151,7 @@ SEO メタ（title, OGP）は Document ではなく `App.tsx` 側の `@solidjs/m
 
 ---
 
-### `src/App.tsx` ← `app/layout.tsx`（共通 UI 内側）
+### `src/App.tsx` → `app/layout.tsx`（共通 UI 内側）
 
 **Next.js では:** `layout.tsx` の `{children}` 周りにヘッダー・フッター・フォント・グローバル CSS を置く。全ページ共通のラッパー。
 
@@ -185,7 +185,7 @@ export default function App() {
 
 ---
 
-### `src/routes/index.tsx` ← `app/page.tsx`
+### `src/routes/index.tsx` → `app/page.tsx`
 
 **Next.js では:** `app/page.tsx` を async Server Component にし、関数本体で `await supabase.rpc(...)` して JSX を返す。`export const revalidate = 86400` で ISR を宣言できる。
 
@@ -215,7 +215,7 @@ export default function Home() {
 
 ---
 
-### `src/routes/api/revalidate.ts` ← `app/api/revalidate/route.ts`
+### `src/routes/api/revalidate.ts` → `app/api/revalidate/route.ts`
 
 **Next.js では:** `route.ts` に `export async function POST(request)` を書く。`revalidatePath('/')` で ISR キャッシュを破棄する。
 
