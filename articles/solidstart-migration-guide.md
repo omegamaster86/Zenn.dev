@@ -211,8 +211,6 @@ Next.js は `route.ts` に `export async function POST` を書き、`revalidateP
 
 ```ts
 // app/api/refresh/route.ts（移行前）
-import { revalidatePath } from "next/cache";
-import { type NextRequest, NextResponse } from "next/server";
 
 export async function POST(req: NextRequest) {
 	const auth = req.headers.get("authorization");
@@ -258,9 +256,6 @@ Solid 2 は同名パスに `export const POST: APIHandler` を書く。自前 TT
 
 ```ts
 // src/routes/api/refresh.ts（移行後）
-import { revalidate } from "@solidjs/router";
-import type { APIHandler } from "filesystem-routing/api";
-import { getPageData, invalidatePageCache } from "@/lib/page-data";
 
 function json(data: unknown, status: number) {
 	return new Response(JSON.stringify(data), {
