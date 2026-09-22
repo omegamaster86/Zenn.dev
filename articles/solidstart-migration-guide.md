@@ -113,12 +113,228 @@ export default defineConfig({
 
 **Solid 2 では:** `filesystem-routing` が `src/routes/` を走査し、`virtual:file-routes` として Vite に注入する。ページはデフォルト export、API は `GET` / `POST` などの名前付き export。
 
+| URL | Next.js | Solid 2 |
+|-----|---------|---------|
+| `/` | `app/page.tsx` | `src/routes/index.tsx` |
+| `/api/revalidate` | `app/api/revalidate/route.ts` | `src/routes/api/revalidate.ts`（`export const POST`） |
+
+#### トップページ: `app/page.tsx` → `src/routes/index.tsx`
+
+Next.js は async Server Component で Supabase RPC を直呼びし、`export const revalidate` で ISR を宣言する。
+
+```tsx
+// app/page.tsx（移行前）
+import { supabase } from "@/lib/supabase/static";
+import Articles from "./components/Articles";
+import Footer from "./components/Footer";
+import Header from "./components/Header";
+import HeroSection from "./components/HeroSection";
+import Menbers from "./components/Menbers";
+
+export const dynamic = "force-static";
+export const revalidate = 86400; // 1 day (on-demand revalidate for instant updates)
+
+export default async function Home() {
+	const { data: tags } = await supabase.rpc("get_tags");
+	const { data: members } = await supabase.rpc("get_members");
+	const { data: articles } = await supabase.rpc("get_articles");
+
+	return (
+		<main
+			className="min-h-screen mx-auto px-4"
+			style={{
+				backgroundImage: "url(/images/tech-blog-bg.png)",
+				backgroundSize: "cover",
+				backgroundPosition: "center",
+				backgroundRepeat: "no-repeat",
+				backgroundAttachment: "fixed",
+			}}
+		>
+			<div className="max-w-[960px] mx-auto">
+				<Header />
+				<HeroSection />
+				<Menbers members={members} />
+				<Articles tags={tags} articles={articles} />
+				<Footer />
+			</div>
+		</main>
+	);
+}
 ```
-Next.js                          Solid 2
-app/page.tsx          →  /        src/routes/index.tsx
-app/api/revalidate/
-  route.ts            →  /api/revalidate   src/routes/api/revalidate.ts（export const POST）
+
+Solid 2 は通常の関数コンポーネント。データは `query()` で包んだサーバー関数（`getHomeData`）を `route.preload` で先行取得し、`createMemo(() => getHomeData())` で参照する。未解決中は `<Loading>` がフォールバック UI になる。
+
+```tsx
+// src/routes/index.tsx（移行後）
+import type { RouteDefinition } from "@solidjs/router";
+import { createMemo, Loading, Show } from "solid-js";
+import Articles from "@/components/Articles";
+import Footer from "@/components/Footer";
+import Header from "@/components/Header";
+import HeroSection from "@/components/HeroSection";
+import Members from "@/components/Members";
+import { getHomeData } from "@/lib/blog-data";
+
+export const route = {
+	preload: () => {
+		void getHomeData();
+	},
+} satisfies RouteDefinition;
+
+export default function Home() {
+	const data = createMemo(() => getHomeData());
+
+	return (
+		<main
+			class="min-h-screen mx-auto px-4"
+			style={{
+				"background-image": "url(/images/tech-blog-bg.png)",
+				"background-size": "cover",
+				"background-position": "center",
+				"background-repeat": "no-repeat",
+				"background-attachment": "fixed",
+			}}
+		>
+			<div class="max-w-[960px] mx-auto">
+				<Header />
+				<HeroSection />
+				<Loading>
+					<Show when={data()}>
+						{(home) => (
+							<>
+								<Members members={home().members} />
+								<Articles tags={home().tags} articles={home().articles} />
+							</>
+						)}
+					</Show>
+				</Loading>
+				<Footer />
+			</div>
+		</main>
+	);
+}
 ```
+
+| Next.js | Solid 2 |
+|---------|---------|
+| `export const revalidate = 86400` | `home-cache.ts` のプロセス内 TTL（86400秒） |
+| `async function Home()` + `await supabase.rpc(...)` | `route.preload` + `query()` サーバー関数 |
+| データ取得完了までサーバーでブロック | `<Loading>` でストリーミング的に描画 |
+
+#### API Route: `app/api/revalidate/route.ts` → `src/routes/api/revalidate.ts`
+
+Next.js は `route.ts` に `export async function POST` を書き、`revalidatePath` で ISR キャッシュを破棄する。
+
+```ts
+// app/api/revalidate/route.ts（移行前）
+import { revalidatePath } from "next/cache";
+import { type NextRequest, NextResponse } from "next/server";
+
+export async function POST(req: NextRequest) {
+	const auth = req.headers.get("authorization");
+	const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : undefined;
+	let token = bearer;
+
+	const url = new URL(req.url);
+	const qpToken = url.searchParams.get("token") ?? undefined;
+	if (!token && qpToken) token = qpToken;
+
+	if (!token) {
+		try {
+			const body = await req.json();
+			token = body?.token;
+		} catch {
+			// ignore
+		}
+	}
+
+	if (!token || token !== process.env.REVALIDATE_TOKEN) {
+		return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+	}
+
+	const path = url.searchParams.get("path") || "/";
+	const allowed = new Set(["/"]);
+	if (!allowed.has(path)) {
+		return NextResponse.json({ message: "Path not allowed", path }, { status: 400 });
+	}
+
+	try {
+		revalidatePath(path, "page");
+		return NextResponse.json({ revalidated: true, path, now: Date.now() });
+	} catch (e) {
+		return NextResponse.json(
+			{ revalidated: false, error: (e as Error).message },
+			{ status: 500 },
+		);
+	}
+}
+```
+
+Solid 2 は同名パスに `export const POST: APIHandler` を書く。自前 TTL キャッシュの `invalidateHomeDataCache()` と、Router の `revalidate(getHomeData.key)` を呼ぶ。
+
+```ts
+// src/routes/api/revalidate.ts（移行後）
+import { revalidate } from "@solidjs/router";
+import type { APIHandler } from "filesystem-routing/api";
+import { getHomeData, invalidateHomeDataCache } from "@/lib/blog-data";
+
+function json(data: unknown, status: number) {
+	return new Response(JSON.stringify(data), {
+		status,
+		headers: { "Content-Type": "application/json" },
+	});
+}
+
+async function readToken(request: Request): Promise<string | undefined> {
+	const auth = request.headers.get("authorization");
+	const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : undefined;
+	let token = bearer;
+
+	const url = new URL(request.url);
+	const qpToken = url.searchParams.get("token") ?? undefined;
+	if (!token && qpToken) token = qpToken;
+
+	if (!token) {
+		try {
+			const body = (await request.json()) as { token?: string };
+			token = body?.token;
+		} catch {
+			// ignore invalid or empty JSON
+		}
+	}
+
+	return token;
+}
+
+export const POST: APIHandler = async ({ request }) => {
+	const url = new URL(request.url);
+	const token = await readToken(request);
+
+	if (!token || token !== process.env.REVALIDATE_TOKEN) {
+		return json({ message: "Unauthorized" }, 401);
+	}
+
+	const path = url.searchParams.get("path") || "/";
+	const allowed = new Set(["/"]);
+	if (!allowed.has(path)) {
+		return json({ message: "Path not allowed", path }, 400);
+	}
+
+	try {
+		invalidateHomeDataCache();
+		revalidate(getHomeData.key);
+		return json({ revalidated: true, path, now: Date.now() }, 200);
+	} catch (e) {
+		return json({ revalidated: false, error: (e as Error).message }, 500);
+	}
+};
+```
+
+| Next.js | Solid 2 |
+|---------|---------|
+| `export async function POST(req)` | `export const POST: APIHandler` |
+| `NextResponse.json(...)` | `new Response(JSON.stringify(...))` |
+| `revalidatePath(path, "page")` | `invalidateHomeDataCache()` + `revalidate(getHomeData.key)` |
 
 ルートごとのデータ取得は `export const route = { preload: ... }` で宣言する。Next の `page.tsx` が async Server Component だった部分に相当する（詳細は後述のデータ取得セクション）。
 
@@ -187,49 +403,15 @@ export default function App() {
 
 ### `src/routes/index.tsx` → `app/page.tsx`
 
-**Next.js では:** `app/page.tsx` を async Server Component にし、関数本体で `await supabase.rpc(...)` して JSX を返す。`export const revalidate = 86400` で ISR を宣言できる。
+実装の全文は上記「`src/routes/` → `app/`」セクションのトップページ比較を参照。
 
-**Solid 2 では:** 通常の関数コンポーネント。データは `query()` で包んだサーバー関数（`getHomeData`）を `route.preload` で先行取得し、`createMemo(() => getHomeData())` で参照する。未解決中は `<Loading>` がフォールバック UI になる。
-
-```tsx
-// routes/index.tsx
-export const route = {
-  preload: () => { void getHomeData(); },  // Next の async page 冒頭の await に相当
-};
-
-export default function Home() {
-  const data = createMemo(() => getHomeData());
-  return (
-    <main>
-      <Header />
-      <Loading>
-        <Show when={data()}>{(home) => /* Members, Articles */}</Show>
-      </Loading>
-      <Footer />
-    </main>
-  );
-}
-```
-
-ページ固有の UI（Header, Hero, Articles など）は Next 時代と同様コンポーネントに分割する。配置先が `app/components/` から `src/components/` に変わるだけ。
+ページ固有の UI（Header, Hero, Articles など）は Next 時代と同様コンポーネントに分割する。配置先が `app/components/` から `src/components/` に変わるだけ。`Menbers` → `Members` のタイポ修正もこのタイミングで行った。
 
 ---
 
 ### `src/routes/api/revalidate.ts` → `app/api/revalidate/route.ts`
 
-**Next.js では:** `route.ts` に `export async function POST(request)` を書く。`revalidatePath('/')` で ISR キャッシュを破棄する。
-
-**Solid 2 では:** 同名パスに `export const POST: APIHandler` を書く。自前 TTL キャッシュの `invalidateHomeDataCache()` と、Router の `revalidate(getHomeData.key)` を呼ぶ。Next の `revalidatePath` に直接相当する API はない。
-
-```ts
-// routes/api/revalidate.ts
-export const POST: APIHandler = async ({ request }) => {
-  // REVALIDATE_TOKEN 検証
-  invalidateHomeDataCache();
-  revalidate(getHomeData.key);
-  return json({ revalidated: true, path: "/", now: Date.now() }, 200);
-};
-```
+実装の全文は上記「`src/routes/` → `app/`」セクションの API Route 比較を参照。トークン取得（Authorization / クエリ / JSON body）のロジックは移行前後で同一。
 
 ---
 
