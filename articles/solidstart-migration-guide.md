@@ -384,7 +384,7 @@ export default function App() {
 
 実装の全文は上記「`src/routes/` → `app/`」セクションのトップページ比較を参照。
 
-ページ固有の UI（Header, Hero, Articles など）は Next 時代と同様コンポーネントに分割する。配置先が `app/components/` から `src/components/` に変わるだけ。`Menbers` → `Members` のタイポ修正もこのタイミングで行った。
+ページ固有の UI（Header, Hero, Articles など）は Nextと同様コンポーネントに分割する。配置先が `app/components/` から `src/components/` に変わるだけ。`Menbers` → `Members` のタイポ修正もこのタイミングで行った。
 
 ---
 
@@ -504,47 +504,6 @@ export function invalidatePageCache() { entry = null; }
 ```
 
 再検証は `POST /api/refresh` で `invalidatePageCache()` + `revalidate(getPageData.key)` を呼ぶ。
-
-## 現行アーキテクチャ
-
-```mermaid
-flowchart LR
-  route["routes/index.tsx\npreload + createMemo + Loading"] --> query["getPageData()\nquery + TTL cache"]
-  query --> supabase["Supabase RPC x3"]
-  api["POST /api/refresh"] --> invalidate["invalidatePageCache\n+ revalidate(key)"]
-  invalidate --> query
-  route --> components["components/*.tsx"]
-```
-
-**ビルド・起動:**
-
-```bash
-npm run dev     # vite
-npm run build   # dist/client + dist/server/
-npm start       # node dist/server/node.js
-```
-
-**環境変数:**
-
-| 変数 | 用途 |
-|------|------|
-| `VITE_SUPABASE_URL` | クライアント公開 |
-| `VITE_SUPABASE_ANON_KEY` | クライアント公開 |
-| `REFRESH_SECRET` | サーバー秘密（`VITE_` を付けない） |
-
-## デプロイ上の注意
-
-### Vercel
-
-Framework Preset は **Other**、Node.js **22.12+**。
-
-Next.js Preset のままだと `No Next.js version detected` で Preview が失敗する。
-
-公式の Solid 2 start-mode Vercel アダプタは移行時点で未確認。**Vercel への自動デプロイは blocker になり得る**。Nitro preset は使えず、start mode の Node サーバ契約（`handleRequest`）を自分で載せる必要がある。
-
-### OGP 画像
-
-`public/ogp.png` がリポジトリに存在しないため、image メタは省略している。404 を避けるための判断。
 
 ## 移行を振り返って
 
