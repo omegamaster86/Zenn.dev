@@ -15,8 +15,8 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 移行前後で変わっていない要件は次のとおり。
 
 - **シングルページ**（トップのみ）
-- Supabase RPC 3本（`get_tags`, `get_members`, `get_articles`）
-- 86400秒 TTL 相当のキャッシュ + `POST /api/revalidate` によるオンデマンド更新
+- Supabase RPC 3本（`fetch_categories`, `fetch_users`, `fetch_items`）
+- 86400秒 TTL 相当のキャッシュ + `POST /api/refresh` によるオンデマンド更新
 - SEO メタ（title, OGP, Google Search Console 検証）
 - UI: 記事一覧、タグフィルタ、ページネーション、メンバーカルーセル
 
@@ -25,7 +25,7 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 | 要件 | Next.js | Solid 2 start mode |
 |------|---------|---------------------|
 | SSR | Server Component + `force-static` | Vite SSR + route `preload` |
-| API Route | `app/api/revalidate/route.ts` | `src/routes/api/revalidate.ts` + middleware |
+| API Route | `app/api/refresh/route.ts` | `src/routes/api/refresh.ts` + middleware |
 | データ取得 | Server Component で RPC | `query()` + `preload` + `createMemo` |
 | キャッシュ | `revalidate: 86400` + `revalidatePath` | 自前 TTL + `revalidate(key)` |
 | ビルド | `next build` | `vite build` → `dist/client` + `dist/server` |
@@ -64,7 +64,7 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 | HTML シェル（`<html>` / `<body>`） | `app/layout.tsx` の外側 | `src/Document.tsx` |
 | 共通レイアウト・メタ・Router | `app/layout.tsx` の内側 | `src/App.tsx` |
 | トップページ | `app/page.tsx`（Server Component） | `src/routes/index.tsx` |
-| API Route | `app/api/revalidate/route.ts` | `src/routes/api/revalidate.ts` |
+| API Route | `app/api/refresh/route.ts` | `src/routes/api/refresh.ts` |
 | エッジ / サーバー middleware | `middleware.ts`（任意） | `src/middleware.ts`（API ハンドラ登録） |
 | サーバー関数の初期化 | 不要（RSC がそのままサーバー実行） | `src/server-config.ts` |
 | Router インスタンス | フレームワーク内蔵 | `src/router.ts` |
@@ -100,23 +100,23 @@ export default defineConfig({
 | オプション | Next.js での相当 | このプロジェクトでの用途 |
 |-----------|-----------------|------------------------|
 | `start.node` | `next start` の Node サーバ | `node dist/server/node.js` で本番起動 |
-| `start.middleware` | `middleware.ts` + Route Handlers | `POST /api/revalidate` を Node サーバに載せる |
+| `start.middleware` | `middleware.ts` + Route Handlers | `POST /api/refresh` を Node サーバに載せる |
 | `ssr: true` | App Router の SSR / SSG | トップページをサーバー描画 |
-| `serverFunctions` | Server Component / Server Actions | `getHomeData()` の `"use server"` を有効化 |
-| `fileRoutes` | `app/**/page.tsx`, `route.ts` | `routes/index.tsx` → `/`、`routes/api/revalidate.ts` → `/api/revalidate` |
+| `serverFunctions` | Server Component / Server Actions | `getPageData()` の `"use server"` を有効化 |
+| `fileRoutes` | `app/**/page.tsx`, `route.ts` | `routes/index.tsx` → `/`、`routes/api/refresh.ts` → `/api/refresh` |
 
 ---
 
 ### `src/routes/` → `app/`
 
-**Next.js では:** `app/page.tsx` が `/`、`app/api/revalidate/route.ts` が `/api/revalidate` になる。ディレクトリ名とファイル名が URL に直結する（App Router の規約ルーティング）。
+**Next.js では:** `app/page.tsx` が `/`、`app/api/refresh/route.ts` が `/api/refresh` になる。ディレクトリ名とファイル名が URL に直結する（App Router の規約ルーティング）。
 
 **Solid 2 では:** `filesystem-routing` が `src/routes/` を走査し、`virtual:file-routes` として Vite に注入する。ページはデフォルト export、API は `GET` / `POST` などの名前付き export。
 
 | URL | Next.js | Solid 2 |
 |-----|---------|---------|
 | `/` | `app/page.tsx` | `src/routes/index.tsx` |
-| `/api/revalidate` | `app/api/revalidate/route.ts` | `src/routes/api/revalidate.ts`（`export const POST`） |
+| `/api/refresh` | `app/api/refresh/route.ts` | `src/routes/api/refresh.ts`（`export const POST`） |
 
 #### トップページ: `app/page.tsx` → `src/routes/index.tsx`
 
@@ -124,20 +124,13 @@ Next.js は async Server Component で Supabase RPC を直呼びし、`export co
 
 ```tsx
 // app/page.tsx（移行前）
-import { supabase } from "@/lib/supabase/static";
-import Articles from "./components/Articles";
-import Footer from "./components/Footer";
-import Header from "./components/Header";
-import HeroSection from "./components/HeroSection";
-import Menbers from "./components/Menbers";
-
 export const dynamic = "force-static";
 export const revalidate = 86400; // 1 day (on-demand revalidate for instant updates)
 
 export default async function Home() {
-	const { data: tags } = await supabase.rpc("get_tags");
-	const { data: members } = await supabase.rpc("get_members");
-	const { data: articles } = await supabase.rpc("get_articles");
+	const { data: tags } = await supabase.rpc("fetch_categories");
+	const { data: members } = await supabase.rpc("fetch_users");
+	const { data: articles } = await supabase.rpc("fetch_items");
 
 	return (
 		<main
@@ -162,27 +155,18 @@ export default async function Home() {
 }
 ```
 
-Solid 2 は通常の関数コンポーネント。データは `query()` で包んだサーバー関数（`getHomeData`）を `route.preload` で先行取得し、`createMemo(() => getHomeData())` で参照する。未解決中は `<Loading>` がフォールバック UI になる。
+Solid 2 は通常の関数コンポーネント。データは `query()` で包んだサーバー関数（`getPageData`）を `route.preload` で先行取得し、`createMemo(() => getPageData())` で参照する。未解決中は `<Loading>` がフォールバック UI になる。
 
 ```tsx
 // src/routes/index.tsx（移行後）
-import type { RouteDefinition } from "@solidjs/router";
-import { createMemo, Loading, Show } from "solid-js";
-import Articles from "@/components/Articles";
-import Footer from "@/components/Footer";
-import Header from "@/components/Header";
-import HeroSection from "@/components/HeroSection";
-import Members from "@/components/Members";
-import { getHomeData } from "@/lib/blog-data";
-
 export const route = {
 	preload: () => {
-		void getHomeData();
+		void getPageData();
 	},
 } satisfies RouteDefinition;
 
 export default function Home() {
-	const data = createMemo(() => getHomeData());
+	const data = createMemo(() => getPageData());
 
 	return (
 		<main
@@ -217,16 +201,16 @@ export default function Home() {
 
 | Next.js | Solid 2 |
 |---------|---------|
-| `export const revalidate = 86400` | `home-cache.ts` のプロセス内 TTL（86400秒） |
+| `export const revalidate = 86400` | `page-cache.ts` のプロセス内 TTL（86400秒） |
 | `async function Home()` + `await supabase.rpc(...)` | `route.preload` + `query()` サーバー関数 |
 | データ取得完了までサーバーでブロック | `<Loading>` でストリーミング的に描画 |
 
-#### API Route: `app/api/revalidate/route.ts` → `src/routes/api/revalidate.ts`
+#### API Route: `app/api/refresh/route.ts` → `src/routes/api/refresh.ts`
 
 Next.js は `route.ts` に `export async function POST` を書き、`revalidatePath` で ISR キャッシュを破棄する。
 
 ```ts
-// app/api/revalidate/route.ts（移行前）
+// app/api/refresh/route.ts（移行前）
 import { revalidatePath } from "next/cache";
 import { type NextRequest, NextResponse } from "next/server";
 
@@ -248,7 +232,7 @@ export async function POST(req: NextRequest) {
 		}
 	}
 
-	if (!token || token !== process.env.REVALIDATE_TOKEN) {
+	if (!token || token !== process.env.REFRESH_SECRET) {
 		return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
 	}
 
@@ -260,23 +244,23 @@ export async function POST(req: NextRequest) {
 
 	try {
 		revalidatePath(path, "page");
-		return NextResponse.json({ revalidated: true, path, now: Date.now() });
+		return NextResponse.json({ refreshed: true, path, now: Date.now() });
 	} catch (e) {
 		return NextResponse.json(
-			{ revalidated: false, error: (e as Error).message },
+			{ refreshed: false, error: (e as Error).message },
 			{ status: 500 },
 		);
 	}
 }
 ```
 
-Solid 2 は同名パスに `export const POST: APIHandler` を書く。自前 TTL キャッシュの `invalidateHomeDataCache()` と、Router の `revalidate(getHomeData.key)` を呼ぶ。
+Solid 2 は同名パスに `export const POST: APIHandler` を書く。自前 TTL キャッシュの `invalidatePageCache()` と、Router の `revalidate(getPageData.key)` を呼ぶ。
 
 ```ts
-// src/routes/api/revalidate.ts（移行後）
+// src/routes/api/refresh.ts（移行後）
 import { revalidate } from "@solidjs/router";
 import type { APIHandler } from "filesystem-routing/api";
-import { getHomeData, invalidateHomeDataCache } from "@/lib/blog-data";
+import { getPageData, invalidatePageCache } from "@/lib/page-data";
 
 function json(data: unknown, status: number) {
 	return new Response(JSON.stringify(data), {
@@ -310,7 +294,7 @@ export const POST: APIHandler = async ({ request }) => {
 	const url = new URL(request.url);
 	const token = await readToken(request);
 
-	if (!token || token !== process.env.REVALIDATE_TOKEN) {
+	if (!token || token !== process.env.REFRESH_SECRET) {
 		return json({ message: "Unauthorized" }, 401);
 	}
 
@@ -321,11 +305,11 @@ export const POST: APIHandler = async ({ request }) => {
 	}
 
 	try {
-		invalidateHomeDataCache();
-		revalidate(getHomeData.key);
-		return json({ revalidated: true, path, now: Date.now() }, 200);
+		invalidatePageCache();
+		revalidate(getPageData.key);
+		return json({ refreshed: true, path, now: Date.now() }, 200);
 	} catch (e) {
-		return json({ revalidated: false, error: (e as Error).message }, 500);
+		return json({ refreshed: false, error: (e as Error).message }, 500);
 	}
 };
 ```
@@ -334,7 +318,7 @@ export const POST: APIHandler = async ({ request }) => {
 |---------|---------|
 | `export async function POST(req)` | `export const POST: APIHandler` |
 | `NextResponse.json(...)` | `new Response(JSON.stringify(...))` |
-| `revalidatePath(path, "page")` | `invalidateHomeDataCache()` + `revalidate(getHomeData.key)` |
+| `revalidatePath(path, "page")` | `invalidatePageCache()` + `revalidate(getPageData.key)` |
 
 ルートごとのデータ取得は `export const route = { preload: ... }` で宣言する。Next の `page.tsx` が async Server Component だった部分に相当する（詳細は後述のデータ取得セクション）。
 
@@ -409,7 +393,7 @@ export default function App() {
 
 ---
 
-### `src/routes/api/revalidate.ts` → `app/api/revalidate/route.ts`
+### `src/routes/api/refresh.ts` → `app/api/refresh/route.ts`
 
 実装の全文は上記「`src/routes/` → `app/`」セクションの API Route 比較を参照。トークン取得（Authorization / クエリ / JSON body）のロジックは移行前後で同一。
 
@@ -450,7 +434,7 @@ configureServerFunctionsServer({
 });
 ```
 
-`getHomeData()` が `"use server"` でサーバー実行され、クライアントの `createMemo` から透過的に呼べるのは、この設定と `vite.config.ts` の `serverFunctions` がセットになっているため。
+`getPageData()` が `"use server"` でサーバー実行され、クライアントの `createMemo` から透過的に呼べるのは、この設定と `vite.config.ts` の `serverFunctions` がセットになっているため。
 
 ---
 
@@ -492,17 +476,17 @@ Server Component の async 関数から、Router 2 の `query()` + `preload` + `
 ```tsx
 // Before: Next.js Server Component
 export default async function Home() {
-  const { data: tags } = await supabase.rpc("get_tags");
+  const { data: tags } = await supabase.rpc("fetch_categories");
   // ...
 }
 
 // After: Solid 2 start mode
 export const route = {
-  preload: () => { void getHomeData(); },
+  preload: () => { void getPageData(); },
 };
 
 export default function Home() {
-  const data = createMemo(() => getHomeData());
+  const data = createMemo(() => getPageData());
   return (
     <Loading>
       <Show when={data()}>{(home) => /* ... */}</Show>
@@ -518,21 +502,21 @@ Router 2 では `preload` は **開始だけ**（戻り値を props で読まな
 Next.js の ISR に相当する処理を自前実装した。start mode に ISR がないため、サーバー関数側のメモリキャッシュとして残している。
 
 ```ts
-// src/lib/home-cache.ts — TTL 86400s
-export function readHomeCache<T>(): T | null { /* ... */ }
-export function writeHomeCache<T>(value: T) { /* ... */ }
-export function invalidateHomeDataCache() { entry = null; }
+// src/lib/page-cache.ts — TTL 86400s
+export function readPageCache<T>(): T | null { /* ... */ }
+export function writePageCache<T>(value: T) { /* ... */ }
+export function invalidatePageCache() { entry = null; }
 ```
 
-再検証は `POST /api/revalidate` で `invalidateHomeDataCache()` + `revalidate(getHomeData.key)` を呼ぶ。
+再検証は `POST /api/refresh` で `invalidatePageCache()` + `revalidate(getPageData.key)` を呼ぶ。
 
 ## 現行アーキテクチャ
 
 ```mermaid
 flowchart LR
-  route["routes/index.tsx\npreload + createMemo + Loading"] --> query["getHomeData()\nquery + TTL cache"]
+  route["routes/index.tsx\npreload + createMemo + Loading"] --> query["getPageData()\nquery + TTL cache"]
   query --> supabase["Supabase RPC x3"]
-  api["POST /api/revalidate"] --> invalidate["invalidateHomeDataCache\n+ revalidate(key)"]
+  api["POST /api/refresh"] --> invalidate["invalidatePageCache\n+ revalidate(key)"]
   invalidate --> query
   route --> components["components/*.tsx"]
 ```
@@ -551,7 +535,7 @@ npm start       # node dist/server/node.js
 |------|------|
 | `VITE_SUPABASE_URL` | クライアント公開 |
 | `VITE_SUPABASE_ANON_KEY` | クライアント公開 |
-| `REVALIDATE_TOKEN` | サーバー秘密（`VITE_` を付けない） |
+| `REFRESH_SECRET` | サーバー秘密（`VITE_` を付けない） |
 
 ## デプロイ上の注意
 
