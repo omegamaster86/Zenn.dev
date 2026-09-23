@@ -5,20 +5,20 @@ type: tech
 topics: [nextjs, solidjs, supabase, vercel, migration]
 published: false
 ---
+## はじめに
+GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start mode** へ移行してみました〜
+え？移行を決めた理由？私がNext.js から Solid 2に移行した場合、どんな感じになるか知りたかったから！
 
-GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start mode** へ移行した。
-
-シングルページ + Supabase RPC + revalidate だけの構成だったため、Next.js のフルスタック機能は過剰と判断し、Solid 2 start mode を直接採用した。
 
 ## このブログの構成
 
 移行前後で変わっていない要件は次のとおり。
 
-- **シングルページ**（トップのみ）
-- Supabase RPC 3本（`fetch_categories`, `fetch_users`, `fetch_items`）
-- 86400秒 TTL 相当のキャッシュ + `POST /api/refresh` によるオンデマンド更新
-- SEO メタ（title, OGP, Google Search Console 検証）
-- UI: 記事一覧、タグフィルタ、ページネーション、メンバーカルーセル
+- **シングルページ**（トップのみ）。
+- Supabase RPC 3本（`fetch_categories`, `fetch_users`, `fetch_items`）。
+- 86400秒 TTL 相当のキャッシュ + `POST /api/refresh` によるオンデマンド更新。
+- SEO メタ（title, OGP, Google Search Console 検証）。
+- UI: 記事一覧、タグフィルタ、ページネーション、メンバーカルーセル。
 
 ## なぜ Solid 2 start mode か
 
@@ -34,8 +34,8 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 
 | 名称 | 実体 |
 |------|------|
-| **SolidStart**（Vinxi / Nitro） | 旧フレームワーク。Solid 2 移行では経由しない |
-| **SolidStart v2** | Solid **1.x** 向け。Node **24** 必須。メンテナンスモード |
+| **SolidStart**（Vinxi / Nitro） | 旧フレームワーク。Solid 2 移行では経由しない。 |
+| **SolidStart v2** | Solid **1.x** 向け。Node **24** 必須。メンテナンスモード。 |
 | **Solid 2 start mode** | `@solidjs/vite-plugin` の `start`。Node **>=22.12.0** |
 
 ## スタック
@@ -49,7 +49,7 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 - `@solidjs/meta@^1.0.0-next.2`
 - `filesystem-routing`, `vite@^8.1.5`, `@tailwindcss/vite`
 
-**使わないもの:** `@solidjs/start`, `vinxi`, Nitro
+**使わないもの:** `@solidjs/start`, `vinxi`, Nitro。
 
 ## 設定の要点
 
@@ -99,10 +99,10 @@ export default defineConfig({
 
 | オプション | Next.js での相当 | このプロジェクトでの用途 |
 |-----------|-----------------|------------------------|
-| `start.node` | `next start` の Node サーバ | `node dist/server/node.js` で本番起動 |
-| `start.middleware` | `middleware.ts` + Route Handlers | `POST /api/refresh` を Node サーバに載せる |
-| `ssr: true` | App Router の SSR / SSG | トップページをサーバー描画 |
-| `serverFunctions` | Server Component / Server Actions | `getPageData()` の `"use server"` を有効化 |
+| `start.node` | `next start` の Node サーバ | `node dist/server/node.js` で本番起動。 |
+| `start.middleware` | `middleware.ts` + Route Handlers | `POST /api/refresh` を Node サーバに載せる。 |
+| `ssr: true` | App Router の SSR / SSG | トップページをサーバー描画。 |
+| `serverFunctions` | Server Component / Server Actions | `getPageData()` の `"use server"` を有効化。 |
 | `fileRoutes` | `app/**/page.tsx`, `route.ts` | `routes/index.tsx` → `/`、`routes/api/refresh.ts` → `/api/refresh` |
 
 ---
@@ -203,7 +203,7 @@ export default function Home() {
 |---------|---------|
 | `export const revalidate = 86400` | `page-cache.ts` のプロセス内 TTL（86400秒） |
 | `async function Home()` + `await supabase.rpc(...)` | `route.preload` + `query()` サーバー関数 |
-| データ取得完了までサーバーでブロック | `<Loading>` でストリーミング的に描画 |
+| データ取得完了までサーバーでブロック。 | `<Loading>` でストリーミング的に描画。 |
 
 #### API Route: `app/api/refresh/route.ts` → `src/routes/api/refresh.ts`
 
@@ -566,7 +566,7 @@ const currentArticles = createMemo(() => {
 | React | Solid 2 | いつ走る |
 |-------|---------|----------|
 | `useEffect(fn, [])` | `onSettled` / `onMount` | 一度だけ |
-| `useEffect(fn, [deps])` | `createEffect` | 関数内で `foo()` として読んだ signal が変わったとき |
+| `useEffect(fn, [deps])` | `createEffect` | 関数内で `foo()` として読んだ signal が変わったとき。 |
 
 #### `onSettled` — 一度だけ走る副作用
 
@@ -736,20 +736,20 @@ const FooterText = (props: { children: JSX.Element }) => { ... };
 |---|---------|---------|
 | キャッシュの数 | **1 箇所**（ISR） | **2 箇所**（query + home-cache） |
 | データ取得 | page.tsx が直接 `await rpc` | `getHomeData()` 経由 |
-| 描画 | データ全部待ってから HTML | Header/Hero を先、記事は後 |
+| 描画 | データ全部待ってから HTML。 | Header/Hero を先、記事は後。 |
 
 #### 通常アクセス（GET `/`）の順番
 
 | # | Next.js | Solid 2 |
 |---|---------|---------|
-| 1 | ブラウザが `/` をリクエスト | 同左 |
-| 2 | ISR キャッシュ（86400秒）を確認 | `preload()` で `getHomeData()` を**開始** |
-| 3 | **HIT** → 保存済み HTML をそのまま返す | Header / Hero を**先に**描画 |
-| 4 | **MISS** → `page.tsx` が Supabase RPC × 3 を `await` | `createMemo` が `getHomeData()` を subscribe |
-| 5 | RPC 完了後、HTML を一括生成 | ① **query キャッシュ**にあればそれを使う |
-| 6 | ISR に 86400秒保存 | ② なければ **home-cache**（86400秒）を確認 |
-| 7 | — | ③ なければ Supabase RPC × 3 → **①② 両方**に保存 |
-| 8 | — | Members / Articles を表示（`<Loading>` 解除） |
+| 1 | ブラウザが `/` をリクエスト。 | 同左 |
+| 2 | ISR キャッシュ（86400秒）を確認。 | `preload()` で `getHomeData()` を**開始**。 |
+| 3 | **HIT** → 保存済み HTML をそのまま返す。 | Header / Hero を**先に**描画。 |
+| 4 | **MISS** → `page.tsx` が Supabase RPC × 3 を `await`。 | `createMemo` が `getHomeData()` を subscribe。 |
+| 5 | RPC 完了後、HTML を一括生成。 | ① **query キャッシュ**にあればそれを使う。 |
+| 6 | ISR に 86400秒保存。 | ② なければ **home-cache**（86400秒）を確認。 |
+| 7 | — | ③ なければ Supabase RPC × 3 → **①② 両方**に保存。 |
+| 8 | — | Members / Articles を表示（`<Loading>` 解除）。 |
 
 Solid 2 で迷いやすいのは **キャッシュが 2 段** ある点。下の図のとおり、外側（query）→ 内側（home-cache）→ Supabase の順に見る。
 
@@ -776,10 +776,10 @@ flowchart TD
 | # | Next.js | Solid 2 |
 |---|---------|---------|
 | 1 | `POST /api/refresh` + token | `POST /api/revalidate` + token |
-| 2 | トークン検証 | トークン検証 |
-| 3 | `revalidatePath("/")` — **ISR 1 箇所を消す** | `invalidateHomeDataCache()` — **② を消す** |
-| 4 | — | `revalidate(getHomeData.key)` — **① を消す** |
-| 5 | 次回 GET `/` で RPC 再取得 → ISR に再保存 | 次回 GET `/` で RPC 再取得 → ①② に再保存 |
+| 2 | トークン検証。 | トークン検証。 |
+| 3 | `revalidatePath("/")` — **ISR 1 箇所を消す**。 | `invalidateHomeDataCache()` — **② を消す**。 |
+| 4 | — | `revalidate(getHomeData.key)` — **① を消す**。 |
+| 5 | 次回 GET `/` で RPC 再取得 → ISR に再保存。 | 次回 GET `/` で RPC 再取得 → ①② に再保存。 |
 
 #### 実装の対応関係
 
@@ -798,18 +798,18 @@ flowchart TD
 |------|---------|---------|
 | キャッシュの所在 | ビルド / ISR 基盤 | Node プロセス内メモリ（`home-cache.ts`） |
 | データ取得のモデル | RSC の `async` + `await supabase.rpc(...)` | `query()` サーバー関数 + `preload` + `createMemo` |
-| 初回描画 | RPC 完了までサーバーでブロック | `<Loading>` で Header / Hero を先に描画 |
+| 初回描画 | RPC 完了までサーバーでブロック。 | `<Loading>` で Header / Hero を先に描画。 |
 | 手動更新 | `revalidatePath("/")` のみ | `invalidateHomeDataCache()` + `revalidate(getHomeData.key)` |
-| 運用上の注意 | フレームワークがキャッシュ寿命を管理 | プロセス再起動でメモリキャッシュは消える（ISR より揮発性が高い） |
+| 運用上の注意 | フレームワークがキャッシュ寿命を管理。 | プロセス再起動でメモリキャッシュは消える（ISR より揮発性が高い）。 |
 
-> 上記コード例（「`src/routes/` → `app/`」節）では `getPageData` / `page-cache.ts` / `/api/refresh` と表記しているが、実装は `getHomeData` / `home-cache.ts` / `/api/revalidate`。
+> 上記コード例（「`src/routes/` → `app/`」節）では `getPageData` / `page-cache.ts` / `/api/refresh` と表記しているが、実装は `getHomeData` / `home-cache.ts` / `/api/revalidate` である。
 
 ## 振り返り
 
-- **要件の絞り込み**: シングルページ + RPC + revalidate だけなら、Next.js の機能を全部使う必要がなかった
-- **start mode 直採用**: SolidStart / Vinxi を経由せず、Vite 一本で SSR + サーバー関数 + API を構成できた
-- **`solid-migration-assistant`**: 移行前に変更点を洗い出し、移行後に検出ゼロを確認できた
-- **自前 TTL**: Next.js ISR と同等のキャッシュ戦略を start mode でも維持できた
+- **要件の絞り込み**: シングルページ + RPC + revalidate だけなら、Next.js の機能を全部使う必要がなかった。
+- **start mode 直採用**: SolidStart / Vinxi を経由せず、Vite 一本で SSR + サーバー関数 + API を構成できた。
+- **`solid-migration-assistant`**: 移行前に変更点を洗い出し、移行後に検出ゼロを確認できた。
+- **自前 TTL**: Next.js ISR と同等のキャッシュ戦略を start mode でも維持できた。
 
 同規模のシングルページ + Supabase 構成なら、Next.js を維持するより Solid 2 start mode の方がシンプルになる、というのが今回の結論。
 
