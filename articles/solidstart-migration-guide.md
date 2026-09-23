@@ -3,8 +3,8 @@ title: "Next.js から Solid 2 start mode へ — tech-blog 移行記"
 emoji: "🔄"
 type: tech
 topics: [nextjs, solidjs, supabase, vercel, migration]
-published: false
-# published_at: 2026-09-23 22:30
+published: true
+published_at: 2026-09-23 24:30
 publication_name: "genai"
 ---
 ## はじめに
@@ -812,11 +812,8 @@ flowchart TD
 
 ## 振り返り
 
-- **要件の絞り込み**: シングルページ + RPC + revalidate だけなら、Next.js の機能を全部使う必要がありませんでした。
 - **start mode 直採用**: SolidStart / Vinxi を経由せず、Vite 一本で SSR + サーバー関数 + API を構成できました。
-- **`solid-migration-assistant`**: 移行前に変更点を洗い出し、移行後に検出ゼロを確認できました。
 - **自前 TTL**: Next.js ISR と同等のキャッシュ戦略を start mode でも維持できました。
-
 同規模のシングルページ + Supabase 構成なら、Next.js を維持するより Solid 2 start mode の方がシンプルになる、というのが今回の結論です。
 
 ## 参考リンク
