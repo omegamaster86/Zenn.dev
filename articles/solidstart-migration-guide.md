@@ -3,8 +3,8 @@ title: "Next.js から Solid 2 start mode へ — tech-blog 移行記"
 emoji: "🔄"
 type: tech
 topics: [nextjs, solidjs, supabase, vercel, migration]
-published: true
-published_at: 2026-09-23 22:30
+published: false
+# published_at: 2026-09-23 22:30
 publication_name: "genai"
 ---
 ## はじめに
