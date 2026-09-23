@@ -6,19 +6,23 @@ topics: [nextjs, solidjs, supabase, vercel, migration]
 published: false
 ---
 ## はじめに
-GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start mode** へ移行してみました〜
-え？移行を決めた理由？私がNext.js から Solid 2に移行した場合、どんな感じになるか知りたかったから！
 
+最近寒いですね〜今年はそこまで酷暑って感じでもなかったので、よかったですね〜（東京にいる感じ）
+GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start mode** へ移行しました〜
+
+移行を決めた理由は、Next.js から Solid 2 に移行した場合がどんな感じになるか知りたかったからです！（そんな理由で変更するのは私だけな気がする…）
+
+そしてこの記事めっちゃ長いので、気になるところだけ見るのを強く推奨します！
 
 ## このブログの構成
 
-移行前後で変わっていない要件は次のとおり。
+移行前後で変わっていない要件は次のとおりです。
 
-- **シングルページ**（トップのみ）。
-- Supabase RPC 3本（`fetch_categories`, `fetch_users`, `fetch_items`）。
-- 86400秒 TTL 相当のキャッシュ + `POST /api/refresh` によるオンデマンド更新。
-- SEO メタ（title, OGP, Google Search Console 検証）。
-- UI: 記事一覧、タグフィルタ、ページネーション、メンバーカルーセル。
+- **シングルページ**（トップのみ）
+- Supabase RPC 3本（`fetch_categories`, `fetch_users`, `fetch_items`）
+- 86400秒 TTL 相当のキャッシュ + `POST /api/refresh` によるオンデマンド更新
+- SEO メタ（title, OGP, Google Search Console 検証）
+- UI: 記事一覧、タグフィルタ、ページネーション、メンバーカルーセル
 
 ## なぜ Solid 2 start mode か
 
@@ -30,12 +34,12 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 | キャッシュ | `revalidate: 86400` + `revalidatePath` | 自前 TTL + `revalidate(key)` |
 | ビルド | `next build` | `vite build` → `dist/client` + `dist/server` |
 
-**SolidStart は使わない。** Solid チームは「Start mode replaces SolidStart」と説明しており、Solid 2 移行の正本は `@solidjs/vite-plugin` の `start` オプション。
+**SolidStart は使いません** Solid チームは「Start mode replaces SolidStart」と説明しており、Solid 2 移行の正本は `@solidjs/vite-plugin` の `start` オプションです。
 
 | 名称 | 実体 |
 |------|------|
-| **SolidStart**（Vinxi / Nitro） | 旧フレームワーク。Solid 2 移行では経由しない。 |
-| **SolidStart v2** | Solid **1.x** 向け。Node **24** 必須。メンテナンスモード。 |
+| **SolidStart**（Vinxi / Nitro） | 旧フレームワークです。Solid 2 移行では経由しません。 |
+| **SolidStart v2** | Solid **1.x** 向けです。Node **24** 必須です。メンテナンスモードです。 |
 | **Solid 2 start mode** | `@solidjs/vite-plugin` の `start`。Node **>=22.12.0** |
 
 ## スタック
@@ -49,11 +53,11 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 - `@solidjs/meta@^1.0.0-next.2`
 - `filesystem-routing`, `vite@^8.1.5`, `@tailwindcss/vite`
 
-**使わないもの:** `@solidjs/start`, `vinxi`, Nitro。
+**使わないもの:** `@solidjs/start`, `vinxi`, `Nitro`
 
 ## 設定の要点
 
-移行で触る設定ファイルは、役割ごとに 1:1 で対応しているわけではない。Next.js は `app/` にページ・レイアウト・API をまとめる一方、Solid 2 start mode は **Vite 設定 + エントリ 3 枚 + ファイルベースルート** に分かれる。
+移行で触る設定ファイルは、役割ごとに 1:1 で対応しているわけではありません。Next.js は `app/` にページ・レイアウト・API をまとめる一方、Solid 2 start mode は **Vite 設定 + エントリ 3 枚 + ファイルベースルート** に分かれます。
 
 ### ファイル対応一覧
 
@@ -73,9 +77,9 @@ GenAi TECH BLOG は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start
 
 ### `vite.config.ts` → `next.config.ts`
 
-**Next.js では:** `next.config.ts` に `images`, `rewrites`, `experimental` などを書く。ビルドは `next build` が内部で webpack / Turbopack を呼ぶ。SSR・静的生成・API Route はすべて Next のランタイムが担う。
+**Next.js では:** `next.config.ts` に `images`, `rewrites`, `experimental` などを書きます。ビルドは `next build` が内部で webpack / Turbopack を呼びます。SSR・静的生成・API Route はすべて Next のランタイムが担います。
 
-**Solid 2 では:** Vite の設定ファイルがビルドの中心。`@solidjs/vite-plugin` の `start` オプションで SSR サーバーと Node 本番起動を有効化し、`filesystem-routing` で `src/routes/` をルートに変換する。
+**Solid 2 では:** Vite の設定ファイルがビルドの中心です。`@solidjs/vite-plugin` の `start` オプションで SSR サーバーと Node 本番起動を有効化し、`filesystem-routing` で `src/routes/` をルートに変換します。
 
 ```ts
 // vite.config.ts
@@ -99,19 +103,19 @@ export default defineConfig({
 
 | オプション | Next.js での相当 | このプロジェクトでの用途 |
 |-----------|-----------------|------------------------|
-| `start.node` | `next start` の Node サーバ | `node dist/server/node.js` で本番起動。 |
-| `start.middleware` | `middleware.ts` + Route Handlers | `POST /api/refresh` を Node サーバに載せる。 |
-| `ssr: true` | App Router の SSR / SSG | トップページをサーバー描画。 |
-| `serverFunctions` | Server Component / Server Actions | `getPageData()` の `"use server"` を有効化。 |
+| `start.node` | `next start` の Node サーバ | `node dist/server/node.js` で本番起動します。 |
+| `start.middleware` | `middleware.ts` + Route Handlers | `POST /api/refresh` を Node サーバに載せます。 |
+| `ssr: true` | App Router の SSR / SSG | トップページをサーバー描画します。 |
+| `serverFunctions` | Server Component / Server Actions | `getPageData()` の `"use server"` を有効化します。 |
 | `fileRoutes` | `app/**/page.tsx`, `route.ts` | `routes/index.tsx` → `/`、`routes/api/refresh.ts` → `/api/refresh` |
 
 ---
 
 ### `src/routes/` → `app/`
 
-**Next.js では:** `app/page.tsx` が `/`、`app/api/refresh/route.ts` が `/api/refresh` になる。ディレクトリ名とファイル名が URL に直結する（App Router の規約ルーティング）。
+**Next.js では:** `app/page.tsx` が `/`、`app/api/refresh/route.ts` が `/api/refresh` になります。ディレクトリ名とファイル名が URL に直結します（App Router の規約ルーティング）。
 
-**Solid 2 では:** `filesystem-routing` が `src/routes/` を走査し、`virtual:file-routes` として Vite に注入する。ページはデフォルト export、API は `GET` / `POST` などの名前付き export。
+**Solid 2 では:** `filesystem-routing` が `src/routes/` を走査し、`virtual:file-routes` として Vite に注入します。ページはデフォルト export、API は `GET` / `POST` などの名前付き export です。
 
 | URL | Next.js | Solid 2 |
 |-----|---------|---------|
@@ -120,7 +124,7 @@ export default defineConfig({
 
 #### トップページ: `app/page.tsx` → `src/routes/index.tsx`
 
-Next.js は async Server Component で Supabase RPC を直呼びし、`export const revalidate` で ISR を宣言する。
+Next.js は async Server Component で Supabase RPC を直呼びし、`export const revalidate` で ISR を宣言します。
 
 ```tsx
 // app/page.tsx（移行前）
@@ -155,7 +159,7 @@ export default async function Home() {
 }
 ```
 
-Solid 2 は通常の関数コンポーネント。データは `query()` で包んだサーバー関数（`getPageData`）を `route.preload` で先行取得し、`createMemo(() => getPageData())` で参照する。未解決中は `<Loading>` がフォールバック UI になる。
+Solid 2 は通常の関数コンポーネントです。データは `query()` で包んだサーバー関数（`getPageData`）を `route.preload` で先行取得し、`createMemo(() => getPageData())` で参照します。未解決中は `<Loading>` がフォールバック UI になります。
 
 ```tsx
 // src/routes/index.tsx（移行後）
@@ -203,11 +207,11 @@ export default function Home() {
 |---------|---------|
 | `export const revalidate = 86400` | `page-cache.ts` のプロセス内 TTL（86400秒） |
 | `async function Home()` + `await supabase.rpc(...)` | `route.preload` + `query()` サーバー関数 |
-| データ取得完了までサーバーでブロック。 | `<Loading>` でストリーミング的に描画。 |
+| データ取得完了までサーバーでブロックします。 | `<Loading>` でストリーミング的に描画します。 |
 
 #### API Route: `app/api/refresh/route.ts` → `src/routes/api/refresh.ts`
 
-Next.js は `route.ts` に `export async function POST` を書き、`revalidatePath` で ISR キャッシュを破棄する。
+Next.js は `route.ts` に `export async function POST` を書き、`revalidatePath` で ISR キャッシュを破棄します。
 
 ```ts
 // app/api/refresh/route.ts（移行前）
@@ -252,7 +256,7 @@ export async function POST(req: NextRequest) {
 }
 ```
 
-Solid 2 は同名パスに `export const POST: APIHandler` を書く。自前 TTL キャッシュの `invalidatePageCache()` と、Router の `revalidate(getPageData.key)` を呼ぶ。
+Solid 2 は同名パスに `export const POST: APIHandler` を書きます。自前 TTL キャッシュの `invalidatePageCache()` と、Router の `revalidate(getPageData.key)` を呼びます。
 
 ```ts
 // src/routes/api/refresh.ts（移行後）
@@ -315,15 +319,15 @@ export const POST: APIHandler = async ({ request }) => {
 | `NextResponse.json(...)` | `new Response(JSON.stringify(...))` |
 | `revalidatePath(path, "page")` | `invalidatePageCache()` + `revalidate(getPageData.key)` |
 
-ページ固有の UI（Header, Hero, Articles など）は Next と同様コンポーネントに分割する。配置先が `app/components/` から `src/components/` に変わるだけ。`Menbers` → `Members` のタイポ修正もこのタイミングで行った。
+ページ固有の UI（Header, Hero, Articles など）は Next と同様コンポーネントに分割します。配置先が `app/components/` から `src/components/` に変わるだけです。
 
 ---
 
 ### `src/Document.tsx` → `app/layout.tsx`（HTML 外側）
 
-**Next.js では:** `app/layout.tsx` が `<html>` / `<head>` / `<body>` を含む。`metadata` export や `next/font` もここに置くことが多い。
+**Next.js では:** `app/layout.tsx` が `<html>` / `<head>` / `<body>` を含みます。`metadata` export や `next/font` もここに置くことが多いです。
 
-**Solid 2 では:** HTML ドキュメントの骨格だけを `Document.tsx` に分離する。SSR 時にサーバーがこのコンポーネントで `<html>` を描画し、クライアントでは `<HydrationScript />` でハイドレーション用スクリプトを差し込む。
+**Solid 2 では:** HTML ドキュメントの骨格だけを `Document.tsx` に分離します。SSR 時にサーバーがこのコンポーネントで `<html>` を描画し、クライアントでは `<HydrationScript />` でハイドレーション用スクリプトを差し込みます。
 
 ```tsx
 // Document.tsx — Next の layout.tsx から <html>〜<body> 部分を切り出したイメージ
@@ -346,9 +350,9 @@ export default function Document(props: ParentProps) {
 
 ### `src/App.tsx` → `app/layout.tsx`（共通 UI 内側）
 
-**Next.js では:** `layout.tsx` の `{children}` 周りにヘッダー・フッター・フォント・グローバル CSS を置く。全ページ共通のラッパー。
+**Next.js では:** `layout.tsx` の `{children}` 周りにヘッダー・フッター・フォント・グローバル CSS を置きます。全ページ共通のラッパーです。
 
-**Solid 2 では:** `App.tsx` がアプリのルートコンポーネント。`<Router>` をマウントし、サイト共通のメタタグ・グローバルスタイル・`<Loading>` フォールバックをここで定義する。各ルートの `children` は Router 経由で流れ込む。
+**Solid 2 では:** `App.tsx` がアプリのルートコンポーネントです。`<Router>` をマウントし、サイト共通のメタタグ・グローバルスタイル・`<Loading>` フォールバックをここで定義します。各ルートの `children` は Router 経由で流れ込みます。
 
 ```tsx
 // App.tsx — layout.tsx の {children} より外側（Router + 共通メタ）
@@ -376,15 +380,15 @@ export default function App() {
 | `import "./globals.css"` | `import "./app.css"` |
 | `{children}` をそのまま描画 | `<Router>` → `props.children` |
 
-`export const metadata` の Before/After は上のコード例と変換表を参照。SEO メタは Document ではなくここ（`App.tsx`）に置く。
+`export const metadata` の Before/After は上のコード例と変換表を参照してください。SEO メタは Document ではなくここ（`App.tsx`）に置きます。
 
 ---
 
 ### `src/middleware.ts`
 
-**Next.js では:** プロジェクトルートの `middleware.ts` でリクエストを横断的に処理する（認証リダイレクト、ヘッダー付与など）。tech-blog では移行前も revalidate 専用の middleware は不要だった。
+**Next.js では:** プロジェクトルートの `middleware.ts` でリクエストを横断的に処理します（認証リダイレクト、ヘッダー付与など）。tech-blog では移行前も revalidate 専用の middleware は不要でした。
 
-**Solid 2 では:** start mode の `middleware` オプションで指定するファイル。ここでは `filesystem-routing/api` の `createAPIHandler` を登録し、`/api/*` へのリクエストを Node サーバで受ける。
+**Solid 2 では:** start mode の `middleware` オプションで指定するファイルです。ここでは `filesystem-routing/api` の `createAPIHandler` を登録し、`/api/*` へのリクエストを Node サーバで受けます。
 
 ```ts
 // middleware.ts
@@ -394,15 +398,15 @@ import { createAPIHandler } from "filesystem-routing/api";
 export default [createAPIHandler(routes)];
 ```
 
-Next の Edge Middleware とは別物。ページ SSR 用の前処理ではなく、**API Route を start mode サーバに載せるためのフック**として使っている。
+Next の Edge Middleware とは別物です。ページ SSR 用の前処理ではなく、**API Route を start mode サーバに載せるためのフック**として使っています。
 
 ---
 
 ### `src/server-config.ts`
 
-**Next.js では:** 相当ファイルなし。Server Component はビルド時にサーバー境界が自動で切られる。
+**Next.js では:** 相当ファイルはありません。Server Component はビルド時にサーバー境界が自動で切られます。
 
-**Solid 2 では:** `"use server"` 付き関数（サーバー関数）のサーバー側初期化を行う。`@solidjs/router` の Flight データ収集を Router に紐づける。
+**Solid 2 では:** `"use server"` 付き関数（サーバー関数）のサーバー側初期化を行います。`@solidjs/router` の Flight データ収集を Router に紐づけます。
 
 ```ts
 // server-config.ts
@@ -415,15 +419,15 @@ configureServerFunctionsServer({
 });
 ```
 
-`getPageData()` が `"use server"` でサーバー実行され、クライアントの `createMemo` から透過的に呼べるのは、この設定と `vite.config.ts` の `serverFunctions` がセットになっているため。
+`getPageData()` が `"use server"` でサーバー実行され、クライアントの `createMemo` から透過的に呼べるのは、この設定と `vite.config.ts` の `serverFunctions` がセットになっているためです。
 
 ---
 
 ### `src/router.ts`
 
-**Next.js では:** ルーティングはフレームワーク内蔵。`app/` のファイル構造がそのままルートテーブルになる。
+**Next.js では:** ルーティングはフレームワーク内蔵です。`app/` のファイル構造がそのままルートテーブルになります。
 
-**Solid 2 では:** `@solidjs/router` のインスタンスを明示的に生成する。`virtual:file-routes` から `fileRoutes()` でルート定義を組み立て、`App.tsx` の `<Router>` に渡す。
+**Solid 2 では:** `@solidjs/router` のインスタンスを明示的に生成します。`virtual:file-routes` から `fileRoutes()` でルート定義を組み立て、`App.tsx` の `<Router>` に渡します。
 
 ```ts
 // router.ts
@@ -434,11 +438,11 @@ import { fileRoutes } from "@solidjs/router/fs";
 export const Router = createRouter({ routes: fileRoutes(pageRoutes) });
 ```
 
-Next における「規約ルーティングの結果をコードで触る」場所が、この 1 ファイルに集約される。
+Next における「規約ルーティングの結果をコードで触る」場所が、この 1 ファイルに集約されます。
 
 ## React / Next.js → Solid 2 の変換
 
-設定ファイルの対応表（前節）に加え、**コンポーネント API** は次のとおり置き換えた。各項目に tech-blog で実際に触った Before / After を載せておきます。
+設定ファイルの対応表（前節）に加え、**コンポーネント API** は次のとおり置き換えました。各項目に tech-blog で実際に触った Before / After を載せておきます。
 
 | React / Next.js | Solid 2 |
 |-----------------|---------|
@@ -455,15 +459,15 @@ Next における「規約ルーティングの結果をコードで触る」場
 | `Suspense` | `Loading` |
 | `JSX` 型 from `react` | from `@solidjs/web` |
 
-`"use client"` ディレクティブは Solid では不要。コンポーネントはデフォルトでクライアント実行可能。
+`"use client"` ディレクティブは Solid では不要です。コンポーネントはデフォルトでクライアント実行可能です。
 
 ---
 
 ### `useState` → `createSignal`
 
-**Next.js では:** `useState` でローカル状態を持つ。更新は `setXxx(value)` または `setXxx(prev => ...)`。読み取りは変数をそのまま参照する（`isScrolled`）。
+**Next.js では:** `useState` でローカル状態を持ちます。更新は `setXxx(value)` または `setXxx(prev => ...)` です。読み取りは変数をそのまま参照します（`isScrolled`）。
 
-**Solid 2 では:** `createSignal` で `[getter, setter]` を得る。setter の書き方は React とほぼ同じだが、**読み取りは `getter()` を呼ぶ**（関数呼び出しが必須）。
+**Solid 2 では:** `createSignal` で `[getter, setter]` を得ます。setter の書き方は React とほぼ同じですが、**読み取りは `getter()` を呼ぶ**必要があります（関数呼び出しが必須です）。
 
 | | React | Solid |
 |---|---|---|
@@ -471,7 +475,7 @@ Next における「規約ルーティングの結果をコードで触る」場
 | 読み取り | `isScrolled` | `isScrolled()` |
 | 更新 | `setIsScrolled(true)` | `setIsScrolled(true)` |
 
-getter が関数である理由は、Solid の細かい粒度のリアクティビティにある。`isScrolled()` を呼んだとき Solid は「この場所は `isScrolled` に依存している」と記録し、`setIsScrolled(...)` で値が変わったとき **その依存箇所だけ** 再評価する。`()` を付け忘れると `isScrolled` は関数オブジェクトなので常に truthy になり、スクロールしても見た目が変わらないなど意図しない挙動になる。
+getter が関数である理由は、Solid の細かい粒度のリアクティビティにあります。`isScrolled()` を呼んだとき Solid は「この場所は `isScrolled` に依存している」と記録し、`setIsScrolled(...)` で値が変わったとき **その依存箇所だけ** 再評価します。`()` を付け忘れると `isScrolled` は関数オブジェクトなので常に truthy になり、スクロールしても見た目が変わらないなど意図しない挙動になります。
 
 #### 例 1: `Header.tsx` — スクロール状態の 1 変数
 
@@ -487,7 +491,7 @@ const [isScrolled, setIsScrolled] = createSignal(false);
 <header class={`... ${isScrolled() ? "p-3" : ""}`}>
 ```
 
-setter（`setIsScrolled(...)`）は移行前後で同じ。変わるのは **読み取り側の `()`** だけ。スクロール監視の副作用は次節の `onSettled` で置き換えた。
+setter（`setIsScrolled(...)`）は移行前後で同じです。変わるのは **読み取り側の `()`** だけです。スクロール監視の副作用は次節の `onSettled` で置き換えました。
 
 #### 例 2: `Articles.tsx` — 複数 signal と派生値
 
@@ -553,24 +557,24 @@ const currentArticles = createMemo(() => {
 <Pagination currentPage={currentPage()} totalPages={totalPages()} />
 ```
 
-`setSelectedTagIds((prev) => ...)` の関数型更新は React と同じ形で書ける。移行で増えるのは主に **読み取りの `()`** と、派生値を `createMemo` に切り出す点（トップページの `createMemo(() => getPageData())` も同じ考え方）。
+`setSelectedTagIds((prev) => ...)` の関数型更新は React と同じ形で書けます。移行で増えるのは主に **読み取りの `()`** と、派生値を `createMemo` に切り出す点です（トップページの `createMemo(() => getPageData())` も同じ考え方です）。
 
 ---
 
 ### `useEffect` → `onSettled` / `createEffect`
 
-**Next.js では:** `useEffect(() => { ...; return cleanup }, [deps])` で副作用とクリーンアップを書く。依存配列 `[deps]` で「いつ再実行するか」を明示する。
+**Next.js では:** `useEffect(() => { ...; return cleanup }, [deps])` で副作用とクリーンアップを書きます。依存配列 `[deps]` で「いつ再実行するか」を明示します。
 
-**Solid 2 では:** `useEffect` に 1:1 で置き換える API は無い。**依存配列の有無**で使う API が分かれる。
+**Solid 2 では:** `useEffect` に 1:1 で置き換える API はありません。**依存配列の有無**で使う API が分かれます。
 
 | React | Solid 2 | いつ走る |
 |-------|---------|----------|
 | `useEffect(fn, [])` | `onSettled` / `onMount` | 一度だけ |
-| `useEffect(fn, [deps])` | `createEffect` | 関数内で `foo()` として読んだ signal が変わったとき。 |
+| `useEffect(fn, [deps])` | `createEffect` | 関数内で `foo()` として読んだ signal が変わったときです。 |
 
 #### `onSettled` — 一度だけ走る副作用
 
-初期のリアクティブ更新が落ち着いたあとに **1 回だけ** 実行する。return で cleanup を返せる。`useEffect(fn, [])` の置き換え先。`Header.tsx` のスクロール監視は次のとおり。
+初期のリアクティブ更新が落ち着いたあとに **1 回だけ** 実行します。return で cleanup を返せます。`useEffect(fn, [])` の置き換え先です。`Header.tsx` のスクロール監視は次のとおりです。
 
 ```tsx
 // Before — useEffect(fn, [])
@@ -591,18 +595,18 @@ onSettled(() => {
 });
 ```
 
-本プロジェクトでは `Header.tsx`（スクロール監視）、`AnimatedText.tsx`（`IntersectionObserver`）、`Members.tsx`（リサイズ監視）、`ScrollDown.tsx`（`setInterval`）がすべてこのパターン。いずれも「DOM に登録して、あとはイベントで動く」だけなので `createEffect` は不要。
+本プロジェクトでは `Header.tsx`（スクロール監視）、`AnimatedText.tsx`（`IntersectionObserver`）、`Members.tsx`（リサイズ監視）、`ScrollDown.tsx`（`setInterval`）がすべてこのパターンです。いずれも「DOM に登録して、あとはイベントで動く」だけなので `createEffect` は不要です。
 
-`onMount` もブラウザ専用で一度だけ走るが、SSR ガードが不要な点で `window` 操作には向く。本プロジェクトでは DOM ref の代入を待つために `onSettled` を採用した。
+`onMount` もブラウザ専用で一度だけ走りますが、SSR ガードが不要な点で `window` 操作には向きます。本プロジェクトでは DOM ref の代入を待つために `onSettled` を採用しました。
 
 **移行後だけ `typeof window === "undefined"` がある理由:**
 
-- **移行前（`useEffect`）:** コールバックはクライアント専用。SSR 中には一度も走らないので、`window` は常に存在する。
-- **移行後（`onSettled`）:** Solid 2 start mode は Vite SSR でコンポーネントをサーバーでも実行する。`onSettled` はリアクティブ更新が落ち着いたタイミングで走るため、サーバー側でもコールバックが呼ばれる。Node.js には `window` がないのでガードが必要。
+- **移行前（`useEffect`）:** コールバックはクライアント専用です。SSR 中には一度も走らないので、`window` は常に存在します。
+- **移行後（`onSettled`）:** Solid 2 start mode は Vite SSR でコンポーネントをサーバーでも実行します。`onSettled` はリアクティブ更新が落ち着いたタイミングで走るため、サーバー側でもコールバックが呼ばれます。Node.js には `window` がないのでガードが必要です。
 
 #### `createEffect` — signal の変化に追従する副作用
 
-依存配列 `[deps]` 付きの `useEffect` の置き換え先。関数内で `count()` のように **getter を `()` で読む**と、Solid がその signal を自動追跡する。依存配列は不要。
+依存配列 `[deps]` 付きの `useEffect` の置き換え先です。関数内で `count()` のように **getter を `()` で読む**と、Solid がその signal を自動追跡します。依存配列は不要です。
 
 ```tsx
 // React — currentPage が変わったら再実行
@@ -616,17 +620,17 @@ createEffect(() => {
 });
 ```
 
-`()` を付け忘れると `currentPage` は関数オブジェクトそのものを参照するだけで、値の変化を追跡できない（`useState` → `createSignal` の節と同じ罠）。
+`()` を付け忘れると `currentPage` は関数オブジェクトそのものを参照するだけで、値の変化を追跡できません（`useState` → `createSignal` の節と同じ罠です）。
 
-tech-blog ではページネーションやタグフィルタの変更は JSX の再描画（`createMemo` + `currentPage()`）で済んでおり、signal の変化に連動する副作用（`document.title` の更新、外部ライブラリの再初期化など）は無かったため、`createEffect` の使用箇所はない。
+tech-blog ではページネーションやタグフィルタの変更は JSX の再描画（`createMemo` + `currentPage()`）で済んでおり、signal の変化に連動する副作用（`document.title` の更新、外部ライブラリの再初期化など）はなかったため、`createEffect` の使用箇所はありません。
 
 ---
 
 ### `useRef` → `let` + `ref`
 
-**Next.js では:** `useRef<HTMLDivElement>(null)` で DOM 参照を保持し、`ref.current` でアクセスする。
+**Next.js では:** `useRef<HTMLDivElement>(null)` で DOM 参照を保持し、`ref.current` でアクセスします。
 
-**Solid 2 では:** コンポントスコープの `let el` に `ref={el}` で代入する。`.current` は無い。
+**Solid 2 では:** コンポーネントスコープの `let el` に `ref={el}` で代入します。`.current` はありません。
 
 ```tsx
 // Before
@@ -644,15 +648,15 @@ let containerEl: HTMLDivElement | undefined;
 
 ### `className` → `class`
 
-React の `className` は `class` に、`style` のキーは camelCase から kebab-case（`backgroundImage` → `"background-image"`）へ。トップページの Before/After は「`src/routes/` → `app/`」のトップページ比較を参照。
+React の `className` は `class` に、`style` のキーは camelCase から kebab-case（`backgroundImage` → `"background-image"`）へ変えます。トップページの Before/After は「`src/routes/` → `app/`」のトップページ比較を参照してください。
 
 ---
 
 ### `next/image` → `<img>`
 
-**Next.js では:** `<Image>` で最適化・`priority`・`width`/`height` を宣言する。
+**Next.js では:** `<Image>` で最適化・`priority`・`width`/`height` を宣言します。
 
-**Solid 2 では:** 通常の `<img>`。このプロジェクトは静的 SVG 中心のため、最適化レイヤは不要と判断した。
+**Solid 2 では:** 通常の `<img>` を使います。このプロジェクトは静的 SVG 中心のため、最適化レイヤは不要と判断しました。
 
 ```tsx
 // app/components/Header.tsx（移行前）
@@ -667,9 +671,9 @@ import Image from "next/image";
 
 ### `NEXT_PUBLIC_*` → `VITE_*`
 
-**Next.js では:** クライアントに露出する env は `NEXT_PUBLIC_` プレフィックス。`process.env.NEXT_PUBLIC_SUPABASE_URL` で読む。
+**Next.js では:** クライアントに露出する env は `NEXT_PUBLIC_` プレフィックスです。`process.env.NEXT_PUBLIC_SUPABASE_URL` で読みます。
 
-**Solid 2 では:** Vite の `VITE_` プレフィックス。`import.meta.env.VITE_*` が基本。サーバー関数内では `process.env` にフォールバックする。
+**Solid 2 では:** Vite の `VITE_` プレフィックスを使います。`import.meta.env.VITE_*` が基本です。サーバー関数内では `process.env` にフォールバックします。
 
 ```ts
 // lib/supabase/static.ts（移行前）
@@ -686,15 +690,15 @@ function env(name: "VITE_SUPABASE_URL" | "VITE_SUPABASE_ANON_KEY"): string {
 }
 ```
 
-型定義は `src/vite-env.d.ts` の `ImportMetaEnv` に追加する。
+型定義は `src/vite-env.d.ts` の `ImportMetaEnv` に追加します。
 
 ---
 
 ### `Suspense` → `Loading`
 
-**Next.js / SolidStart 1.x では:** `<Suspense fallback={...}>` で未解決 UI を待つ。
+**Next.js / SolidStart 1.x では:** `<Suspense fallback={...}>` で未解決 UI を待ちます。
 
-**Solid 2 では:** `solid-js` の `<Loading>` に置き換え。`fallback` prop は無く、子が未解決の間はデフォルトのローディング UI が出る。
+**Solid 2 では:** `solid-js` の `<Loading>` に置き換えます。`fallback` prop はなく、子が未解決の間はデフォルトのローディング UI が出ます。
 
 ```tsx
 // src/app.tsx（SolidStart 1.x、移行前）
@@ -706,15 +710,15 @@ import { Loading } from "solid-js";
 <Loading>{props.children}</Loading>
 ```
 
-トップページでの `<Loading>` 用法は「`src/routes/` → `app/`」のトップページ比較を参照。
+トップページでの `<Loading>` 用法は「`src/routes/` → `app/`」のトップページ比較を参照してください。
 
 ---
 
 ### `JSX` 型
 
-**Next.js / React では:** `import type { ReactNode } from "react"` や `JSX.Element`。
+**Next.js / React では:** `import type { ReactNode } from "react"` や `JSX.Element` を使います。
 
-**Solid 2 では:** DOM JSX の型は `@solidjs/web` から import する（`solid-js` ではない）。
+**Solid 2 では:** DOM JSX の型は `@solidjs/web` から import します（`solid-js` ではありません）。
 
 ```tsx
 // Before
@@ -730,28 +734,28 @@ const FooterText = (props: { children: JSX.Element }) => { ... };
 
 ### データ取得とキャッシュ
 
-**ユーザーから見える挙動は移行前後同じ** — 86400秒キャッシュ + Webhook で即更新。変わったのは「誰が・どこでキャッシュするか」だけ。
+**ユーザーから見える挙動は移行前後同じ** — 86400秒キャッシュ + Webhook で即更新です。変わったのは「誰が・どこでキャッシュするか」だけです。
 
 | | Next.js | Solid 2 |
 |---|---------|---------|
 | キャッシュの数 | **1 箇所**（ISR） | **2 箇所**（query + home-cache） |
 | データ取得 | page.tsx が直接 `await rpc` | `getHomeData()` 経由 |
-| 描画 | データ全部待ってから HTML。 | Header/Hero を先、記事は後。 |
+| 描画 | データ全部待ってから HTML です。 | Header/Hero を先、記事は後です。 |
 
 #### 通常アクセス（GET `/`）の順番
 
 | # | Next.js | Solid 2 |
 |---|---------|---------|
-| 1 | ブラウザが `/` をリクエスト。 | 同左 |
-| 2 | ISR キャッシュ（86400秒）を確認。 | `preload()` で `getHomeData()` を**開始**。 |
-| 3 | **HIT** → 保存済み HTML をそのまま返す。 | Header / Hero を**先に**描画。 |
-| 4 | **MISS** → `page.tsx` が Supabase RPC × 3 を `await`。 | `createMemo` が `getHomeData()` を subscribe。 |
-| 5 | RPC 完了後、HTML を一括生成。 | ① **query キャッシュ**にあればそれを使う。 |
-| 6 | ISR に 86400秒保存。 | ② なければ **home-cache**（86400秒）を確認。 |
-| 7 | — | ③ なければ Supabase RPC × 3 → **①② 両方**に保存。 |
-| 8 | — | Members / Articles を表示（`<Loading>` 解除）。 |
+| 1 | ブラウザが `/` をリクエストします。 | 同左 |
+| 2 | ISR キャッシュ（86400秒）を確認します。 | `preload()` で `getHomeData()` を**開始**します。 |
+| 3 | **HIT** → 保存済み HTML をそのまま返します。 | Header / Hero を**先に**描画します。 |
+| 4 | **MISS** → `page.tsx` が Supabase RPC × 3 を `await` します。 | `createMemo` が `getHomeData()` を subscribe します。 |
+| 5 | RPC 完了後、HTML を一括生成します。 | ① **query キャッシュ**にあればそれを使います。 |
+| 6 | ISR に 86400秒保存します。 | ② なければ **home-cache**（86400秒）を確認します。 |
+| 7 | — | ③ なければ Supabase RPC × 3 → **①② 両方**に保存します。 |
+| 8 | — | Members / Articles を表示します（`<Loading>` 解除）。 |
 
-Solid 2 で迷いやすいのは **キャッシュが 2 段** ある点。下の図のとおり、外側（query）→ 内側（home-cache）→ Supabase の順に見る。
+Solid 2 で迷いやすいのは **キャッシュが 2 段** ある点です。下の図のとおり、外側（query）→ 内側（home-cache）→ Supabase の順に見ます。
 
 ```mermaid
 flowchart TD
@@ -767,19 +771,19 @@ flowchart TD
     H --> Z
 ```
 
-> `preload()` と `createMemo` はどちらも `getHomeData()` を呼ぶが、**同じ query なので `loadHomeData` は 1 回だけ**実行される。
+> `preload()` と `createMemo` はどちらも `getHomeData()` を呼びますが、**同じ query なので `loadHomeData` は 1 回だけ**実行されます。
 
 #### 手動更新（Webhook）の順番
 
-記事更新時、Supabase 等から Webhook が飛ぶ。キャッシュを消して次のアクセスで再取得させる。
+記事更新時、Supabase 等から Webhook が飛びます。キャッシュを消して次のアクセスで再取得させます。
 
 | # | Next.js | Solid 2 |
 |---|---------|---------|
 | 1 | `POST /api/refresh` + token | `POST /api/revalidate` + token |
-| 2 | トークン検証。 | トークン検証。 |
-| 3 | `revalidatePath("/")` — **ISR 1 箇所を消す**。 | `invalidateHomeDataCache()` — **② を消す**。 |
-| 4 | — | `revalidate(getHomeData.key)` — **① を消す**。 |
-| 5 | 次回 GET `/` で RPC 再取得 → ISR に再保存。 | 次回 GET `/` で RPC 再取得 → ①② に再保存。 |
+| 2 | トークン検証します。 | トークン検証します。 |
+| 3 | `revalidatePath("/")` — **ISR 1 箇所を消します**。 | `invalidateHomeDataCache()` — **② を消します**。 |
+| 4 | — | `revalidate(getHomeData.key)` — **① を消します**。 |
+| 5 | 次回 GET `/` で RPC 再取得 → ISR に再保存します。 | 次回 GET `/` で RPC 再取得 → ①② に再保存します。 |
 
 #### 実装の対応関係
 
@@ -790,7 +794,7 @@ flowchart TD
 | 86400秒 TTL | `export const revalidate = 86400` | `src/lib/home-cache.ts` |
 | 再検証 API | `app/api/refresh/route.ts` | `src/routes/api/revalidate.ts` |
 
-コード全文は「`src/routes/` → `app/`」節を参照。
+コード全文は「`src/routes/` → `app/`」節を参照してください。
 
 #### 結果として
 
@@ -798,20 +802,20 @@ flowchart TD
 |------|---------|---------|
 | キャッシュの所在 | ビルド / ISR 基盤 | Node プロセス内メモリ（`home-cache.ts`） |
 | データ取得のモデル | RSC の `async` + `await supabase.rpc(...)` | `query()` サーバー関数 + `preload` + `createMemo` |
-| 初回描画 | RPC 完了までサーバーでブロック。 | `<Loading>` で Header / Hero を先に描画。 |
+| 初回描画 | RPC 完了までサーバーでブロックします。 | `<Loading>` で Header / Hero を先に描画します。 |
 | 手動更新 | `revalidatePath("/")` のみ | `invalidateHomeDataCache()` + `revalidate(getHomeData.key)` |
-| 運用上の注意 | フレームワークがキャッシュ寿命を管理。 | プロセス再起動でメモリキャッシュは消える（ISR より揮発性が高い）。 |
+| 運用上の注意 | フレームワークがキャッシュ寿命を管理します。 | プロセス再起動でメモリキャッシュは消えます（ISR より揮発性が高いです）。 |
 
-> 上記コード例（「`src/routes/` → `app/`」節）では `getPageData` / `page-cache.ts` / `/api/refresh` と表記しているが、実装は `getHomeData` / `home-cache.ts` / `/api/revalidate` である。
+> 上記コード例（「`src/routes/` → `app/`」節）では `getPageData` / `page-cache.ts` / `/api/refresh` と表記していますが、実装は `getHomeData` / `home-cache.ts` / `/api/revalidate` です。
 
 ## 振り返り
 
-- **要件の絞り込み**: シングルページ + RPC + revalidate だけなら、Next.js の機能を全部使う必要がなかった。
-- **start mode 直採用**: SolidStart / Vinxi を経由せず、Vite 一本で SSR + サーバー関数 + API を構成できた。
-- **`solid-migration-assistant`**: 移行前に変更点を洗い出し、移行後に検出ゼロを確認できた。
-- **自前 TTL**: Next.js ISR と同等のキャッシュ戦略を start mode でも維持できた。
+- **要件の絞り込み**: シングルページ + RPC + revalidate だけなら、Next.js の機能を全部使う必要がありませんでした。
+- **start mode 直採用**: SolidStart / Vinxi を経由せず、Vite 一本で SSR + サーバー関数 + API を構成できました。
+- **`solid-migration-assistant`**: 移行前に変更点を洗い出し、移行後に検出ゼロを確認できました。
+- **自前 TTL**: Next.js ISR と同等のキャッシュ戦略を start mode でも維持できました。
 
-同規模のシングルページ + Supabase 構成なら、Next.js を維持するより Solid 2 start mode の方がシンプルになる、というのが今回の結論。
+同規模のシングルページ + Supabase 構成なら、Next.js を維持するより Solid 2 start mode の方がシンプルになる、というのが今回の結論です。
 
 ## 参考リンク
 
