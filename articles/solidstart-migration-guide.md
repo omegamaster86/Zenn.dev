@@ -4,7 +4,7 @@ emoji: "🔄"
 type: tech
 topics: [nextjs, solidjs, supabase, vercel, migration]
 published: true
-published_at: 2026-09-23 24:30
+published_at: 2026-09-24 00:30
 publication_name: "genai"
 ---
 ## はじめに
