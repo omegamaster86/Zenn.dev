@@ -474,9 +474,9 @@ Next における「規約ルーティングの結果をコードで触る」場
 
 ### `useState` → `createSignal`
 
-**Next.js では:** `useState` でローカル状態を持つ。更新は `setXxx(value)` または `setXxx(prev => ...)`。
+**Next.js では:** `useState` でローカル状態を持つ。更新は `setXxx(value)` または `setXxx(prev => ...)`。読み取りは変数をそのまま参照する（`isScrolled`）。
 
-**Solid 2 では:** `createSignal` で `[getter, setter]` を得る。React の `useState` が返す `[値, 更新関数]` に似ているが、**1 つ目は値そのものではなく getter 関数**である点が違う。
+**Solid 2 では:** `createSignal` で `[getter, setter]` を得る。setter の書き方は React とほぼ同じだが、**読み取りは `getter()` を呼ぶ**（関数呼び出しが必須）。
 
 | | React | Solid |
 |---|---|---|
@@ -484,41 +484,105 @@ Next における「規約ルーティングの結果をコードで触る」場
 | 読み取り | `isScrolled` | `isScrolled()` |
 | 更新 | `setIsScrolled(true)` | `setIsScrolled(true)` |
 
-React では `isScrolled` が boolean の値そのものだが、Solid では `isScrolled` は「呼ぶと現在値が返る関数」なので、**読み取りは `getter()` を呼ぶ**（関数呼び出しが必須）。
+getter が関数である理由は、Solid の細かい粒度のリアクティビティにある。`isScrolled()` を呼んだとき Solid は「この場所は `isScrolled` に依存している」と記録し、`setIsScrolled(...)` で値が変わったとき **その依存箇所だけ** 再評価する。`()` を付け忘れると `isScrolled` は関数オブジェクトなので常に truthy になり、スクロールしても見た目が変わらないなど意図しない挙動になる。
+
+#### 例 1: `Header.tsx` — スクロール状態の 1 変数
 
 ```tsx
-// React — isScrolled は boolean
+// app/components/Header.tsx（移行前）
 const [isScrolled, setIsScrolled] = useState(false);
-if (isScrolled) { ... }
 
-// Solid — isScrolled は getter 関数
-const [isScrolled, setIsScrolled] = createSignal(false);
-if (isScrolled()) { ... }
+useEffect(() => {
+  const onScroll = () => setIsScrolled(window.scrollY > 10);
+  // ...
+}, []);
+
+// JSX — isScrolled は boolean
+<header className={`... ${isScrolled ? "p-3" : ""}`}>
+  <div className={`... ${isScrolled ? "bg-white rounded-full ..." : "py-5 ..."}`}>
 ```
 
-getter が関数である理由は、Solid の細かい粒度のリアクティビティにある。`isScrolled()` を呼んだとき Solid は「この場所は `isScrolled` に依存している」と記録し、`setIsScrolled(...)` で値が変わったとき **その依存箇所だけ** 再評価する。React はコンポーネント全体を再レンダーするのに対し、Solid は「どの signal を読んだか」を追跡するため、getter を関数にしている。
+```tsx
+// src/components/Header.tsx（移行後）
+const [isScrolled, setIsScrolled] = createSignal(false);
 
-`()` を付け忘れると `isScrolled` は関数オブジェクトなので常に truthy になり、意図しない挙動になる。移行時は `isScrolled` → `isScrolled()` の置き換えがポイント。
+onSettled(() => {
+  const onScroll = () => setIsScrolled(window.scrollY > 10);
+  // ...
+});
+
+// JSX — isScrolled は getter 関数。参照するたびに () が必要
+<header class={`... ${isScrolled() ? "p-3" : ""}`}>
+  <div class={`... ${isScrolled() ? "bg-white rounded-full ..." : "py-5 ..."}`}>
+```
+
+setter（`setIsScrolled(window.scrollY > 10)`）は移行前後で同じ。変わるのは **読み取り側だけ**。
+
+#### 例 2: `Articles.tsx` — 複数 signal と派生値
 
 ```tsx
 // app/components/Articles.tsx（移行前）
 const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
 const [currentPage, setCurrentPage] = useState(1);
+const [showAllTags, setShowAllTags] = useState(false);
 
+const handleTagClick = (tagId: number) => {
+  setSelectedTagIds((prev) =>
+    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+  );
+  setCurrentPage(1);
+};
+
+// 派生値 — selectedTagIds / currentPage を変数として直接参照
+const filteredArticles =
+  selectedTagIds.length === 0
+    ? articles
+    : articles.filter((article) =>
+        selectedTagIds.some((id) => tagIds.includes(id)),
+      );
+const totalPages = Math.ceil(filteredArticles.length / articlesPerPage);
+const currentArticles = filteredArticles.slice(startIndex, endIndex);
+
+// JSX
+<Tag isSelected={selectedTagIds.includes(tag.id)} />
+<Pagination currentPage={currentPage} totalPages={totalPages} />
+```
+
+```tsx
 // src/components/Articles.tsx（移行後）
 const [selectedTagIds, setSelectedTagIds] = createSignal<number[]>([]);
 const [currentPage, setCurrentPage] = createSignal(1);
+const [showAllTags, setShowAllTags] = createSignal(false);
+
+const handleTagClick = (tagId: number) => {
+  setSelectedTagIds((prev) =>
+    prev.includes(tagId) ? prev.filter((id) => id !== tagId) : [...prev, tagId],
+  );
+  setCurrentPage(1);
+};
+
+// 派生値 — signal を読むときも () が必要。createMemo で包む
+const filteredArticles = createMemo(() => {
+  const selected = selectedTagIds();
+  if (selected.length === 0) return props.articles;
+  return props.articles.filter((article) =>
+    selected.some((id) => tagIds.includes(id)),
+  );
+});
+const totalPages = createMemo(() =>
+  Math.max(1, Math.ceil(filteredArticles().length / articlesPerPage)),
+);
+const currentArticles = createMemo(() => {
+  const startIndex = (currentPage() - 1) * articlesPerPage;
+  return filteredArticles().slice(startIndex, startIndex + articlesPerPage);
+});
+
+// JSX
+<Tag isSelected={selectedTagIds().includes(tag.id)} />
+<Pagination currentPage={currentPage()} totalPages={totalPages()} />
 ```
 
-JSX 内の参照も `isScrolled` → `isScrolled()` に変わる。
-
-```tsx
-// Before
-className={`... ${isScrolled ? "p-3" : ""}`}
-
-// After
-class={`... ${isScrolled() ? "p-3" : ""}`}
-```
+`setSelectedTagIds((prev) => ...)` の関数型更新は React と同じ形で書ける。移行で増えるのは主に **読み取りの `()`** と、派生値を `createMemo` に切り出す点（トップページの `createMemo(() => getPageData())` も同じ考え方）。
 
 ---
 
