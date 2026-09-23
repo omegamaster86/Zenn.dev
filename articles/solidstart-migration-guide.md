@@ -611,7 +611,12 @@ onSettled(() => {
 });
 ```
 
-SSR 時に `window` が無いので、`typeof window === "undefined"` のガードを足した。
+**移行後だけ `typeof window === "undefined"` がある理由:**
+
+- **移行前（`useEffect`）:** コールバックはクライアント専用。SSR 中には一度も走らないので、`window` は常に存在する。
+- **移行後（`onSettled`）:** Solid 2 start mode は Vite SSR でコンポーネントをサーバーでも実行する。`onSettled` はリアクティブ更新が落ち着いたタイミングで走るため、サーバー側でもコールバックが呼ばれる。Node.js には `window` がないのでガードが必要。
+
+`window` や `addEventListener` だけの用途なら、React の `useEffect` に近いのは `onMount`（ブラウザ専用）でも書ける。本プロジェクトでは初期のリアクティブ更新後に DOM 副作用を走らせたい箇所（`Header.tsx`, `AnimatedText.tsx` の `IntersectionObserver` など）で `onSettled` を採用した。
 
 ---
 
