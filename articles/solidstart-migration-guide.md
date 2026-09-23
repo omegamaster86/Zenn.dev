@@ -644,17 +644,7 @@ let containerEl: HTMLDivElement | undefined;
 
 ### `className` → `class`
 
-**Next.js では:** React の慣習で `className` を使う。`style` のキーは camelCase（`backgroundImage`）。
-
-**Solid 2 では:** HTML と同じ `class`。`style` のキーは kebab-case も可（`"background-image"`）。
-
-```tsx
-// app/page.tsx（移行前）
-<main className="min-h-screen mx-auto px-4" style={{ backgroundImage: "url(...)" }}>
-
-// src/routes/index.tsx（移行後）
-<main class="min-h-screen mx-auto px-4" style={{ "background-image": "url(...)" }}>
-```
+React の `className` は `class` に、`style` のキーは camelCase から kebab-case（`backgroundImage` → `"background-image"`）へ。トップページの Before/After は「`src/routes/` → `app/`」のトップページ比較を参照。
 
 ---
 
@@ -740,18 +730,79 @@ const FooterText = (props: { children: JSX.Element }) => { ... };
 
 ### データ取得とキャッシュ
 
-Server Component の async から `query()` + `preload` + `createMemo` へ置き換えた。実装の全文は「`src/routes/` → `app/`」のトップページ比較を参照。Router 2 では `preload` は **開始だけ**（戻り値を props で読まない）。
+**ユーザーから見える挙動は移行前後同じ** — 86400秒キャッシュ + Webhook で即更新。変わったのは「誰が・どこでキャッシュするか」だけ。
 
-Next.js の ISR に相当する処理を自前実装した。start mode に ISR がないため、サーバー関数側のメモリキャッシュとして残している。
+| | Next.js | Solid 2 |
+|---|---------|---------|
+| キャッシュの数 | **1 箇所**（ISR） | **2 箇所**（query + home-cache） |
+| データ取得 | page.tsx が直接 `await rpc` | `getHomeData()` 経由 |
+| 描画 | データ全部待ってから HTML | Header/Hero を先、記事は後 |
 
-```ts
-// src/lib/page-cache.ts — TTL 86400s
-export function readPageCache<T>(): T | null { /* ... */ }
-export function writePageCache<T>(value: T) { /* ... */ }
-export function invalidatePageCache() { entry = null; }
+#### 通常アクセス（GET `/`）の順番
+
+| # | Next.js | Solid 2 |
+|---|---------|---------|
+| 1 | ブラウザが `/` をリクエスト | 同左 |
+| 2 | ISR キャッシュ（86400秒）を確認 | `preload()` で `getHomeData()` を**開始** |
+| 3 | **HIT** → 保存済み HTML をそのまま返す | Header / Hero を**先に**描画 |
+| 4 | **MISS** → `page.tsx` が Supabase RPC × 3 を `await` | `createMemo` が `getHomeData()` を subscribe |
+| 5 | RPC 完了後、HTML を一括生成 | ① **query キャッシュ**にあればそれを使う |
+| 6 | ISR に 86400秒保存 | ② なければ **home-cache**（86400秒）を確認 |
+| 7 | — | ③ なければ Supabase RPC × 3 → **①② 両方**に保存 |
+| 8 | — | Members / Articles を表示（`<Loading>` 解除） |
+
+Solid 2 で迷いやすいのは **キャッシュが 2 段** ある点。下の図のとおり、外側（query）→ 内側（home-cache）→ Supabase の順に見る。
+
+```mermaid
+flowchart TD
+    A["getHomeData() が呼ばれる"] --> B{"① query キャッシュ<br/>ある?"}
+    B -->|ある| Z["HomeData を返す"]
+    B -->|ない| C["loadHomeData() を実行"]
+    C --> D{"② home-cache<br/>86400秒以内?"}
+    D -->|ある| E["メモリから返す"]
+    D -->|ない| F["Supabase RPC × 3"]
+    F --> G["② に保存"]
+    E --> H["① に保存"]
+    G --> H
+    H --> Z
 ```
 
-再検証は「`src/routes/` → `app/`」の API Route 比較を参照（`POST /api/refresh` で `invalidatePageCache()` + `revalidate(getPageData.key)`）。
+> `preload()` と `createMemo` はどちらも `getHomeData()` を呼ぶが、**同じ query なので `loadHomeData` は 1 回だけ**実行される。
+
+#### 手動更新（Webhook）の順番
+
+記事更新時、Supabase 等から Webhook が飛ぶ。キャッシュを消して次のアクセスで再取得させる。
+
+| # | Next.js | Solid 2 |
+|---|---------|---------|
+| 1 | `POST /api/refresh` + token | `POST /api/revalidate` + token |
+| 2 | トークン検証 | トークン検証 |
+| 3 | `revalidatePath("/")` — **ISR 1 箇所を消す** | `invalidateHomeDataCache()` — **② を消す** |
+| 4 | — | `revalidate(getHomeData.key)` — **① を消す** |
+| 5 | 次回 GET `/` で RPC 再取得 → ISR に再保存 | 次回 GET `/` で RPC 再取得 → ①② に再保存 |
+
+#### 実装の対応関係
+
+| 役割 | Next.js | Solid 2 |
+|------|---------|---------|
+| ページ | `app/page.tsx`（async Server Component） | `src/routes/index.tsx`（`preload` + `createMemo`） |
+| データ取得 | コンポーネント内 `await supabase.rpc(...)` | `src/lib/blog-data.ts` の `getHomeData`（`query()` + `"use server"`） |
+| 86400秒 TTL | `export const revalidate = 86400` | `src/lib/home-cache.ts` |
+| 再検証 API | `app/api/refresh/route.ts` | `src/routes/api/revalidate.ts` |
+
+コード全文は「`src/routes/` → `app/`」節を参照。
+
+#### 結果として
+
+| 観点 | Next.js | Solid 2 |
+|------|---------|---------|
+| キャッシュの所在 | ビルド / ISR 基盤 | Node プロセス内メモリ（`home-cache.ts`） |
+| データ取得のモデル | RSC の `async` + `await supabase.rpc(...)` | `query()` サーバー関数 + `preload` + `createMemo` |
+| 初回描画 | RPC 完了までサーバーでブロック | `<Loading>` で Header / Hero を先に描画 |
+| 手動更新 | `revalidatePath("/")` のみ | `invalidateHomeDataCache()` + `revalidate(getHomeData.key)` |
+| 運用上の注意 | フレームワークがキャッシュ寿命を管理 | プロセス再起動でメモリキャッシュは消える（ISR より揮発性が高い） |
+
+> 上記コード例（「`src/routes/` → `app/`」節）では `getPageData` / `page-cache.ts` / `/api/refresh` と表記しているが、実装は `getHomeData` / `home-cache.ts` / `/api/revalidate`。
 
 ## 振り返り
 
