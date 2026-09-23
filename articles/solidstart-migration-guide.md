@@ -476,7 +476,29 @@ Next における「規約ルーティングの結果をコードで触る」場
 
 **Next.js では:** `useState` でローカル状態を持つ。更新は `setXxx(value)` または `setXxx(prev => ...)`。
 
-**Solid 2 では:** `createSignal` で `[getter, setter]` を得る。**読み取りは `getter()` を呼ぶ**（関数呼び出しが必須）。
+**Solid 2 では:** `createSignal` で `[getter, setter]` を得る。React の `useState` が返す `[値, 更新関数]` に似ているが、**1 つ目は値そのものではなく getter 関数**である点が違う。
+
+| | React | Solid |
+|---|---|---|
+| 返り値 | `[値, setter]` | `[getter, setter]` |
+| 読み取り | `isScrolled` | `isScrolled()` |
+| 更新 | `setIsScrolled(true)` | `setIsScrolled(true)` |
+
+React では `isScrolled` が boolean の値そのものだが、Solid では `isScrolled` は「呼ぶと現在値が返る関数」なので、**読み取りは `getter()` を呼ぶ**（関数呼び出しが必須）。
+
+```tsx
+// React — isScrolled は boolean
+const [isScrolled, setIsScrolled] = useState(false);
+if (isScrolled) { ... }
+
+// Solid — isScrolled は getter 関数
+const [isScrolled, setIsScrolled] = createSignal(false);
+if (isScrolled()) { ... }
+```
+
+getter が関数である理由は、Solid の細かい粒度のリアクティビティにある。`isScrolled()` を呼んだとき Solid は「この場所は `isScrolled` に依存している」と記録し、`setIsScrolled(...)` で値が変わったとき **その依存箇所だけ** 再評価する。React はコンポーネント全体を再レンダーするのに対し、Solid は「どの signal を読んだか」を追跡するため、getter を関数にしている。
+
+`()` を付け忘れると `isScrolled` は関数オブジェクトなので常に truthy になり、意図しない挙動になる。移行時は `isScrolled` → `isScrolled()` の置き換えがポイント。
 
 ```tsx
 // app/components/Articles.tsx（移行前）
