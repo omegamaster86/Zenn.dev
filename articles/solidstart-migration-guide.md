@@ -452,17 +452,221 @@ Next における「規約ルーティングの結果をコードで触る」場
 
 ## React / Next.js → Solid 2 の変換
 
+設定ファイルの対応表（前節）に加え、**コンポーネント API** は次のとおり置き換えた。各項目に tech-blog で実際に触った Before / After を載せておきます。
+
 | React / Next.js | Solid 2 |
 |-----------------|---------|
 | `useState` | `createSignal` |
 | `useEffect` | `onSettled` + return cleanup |
+| `useRef` | `let el` + `ref={el}` |
 | `className` | `class` |
 | `next/image` | `<img>` |
-| `metadata` export | `@solidjs/meta` |
-| `NEXT_PUBLIC_*` | `VITE_*` |
+| `next/link` | `<a href>` |
+| `metadata` export | `@solidjs/meta` の `<Title>` / `<Meta>` |
+| `NEXT_PUBLIC_*` | `VITE_*` + `import.meta.env` |
 | Server Component の async | `query()` + `"use server"` |
 | `Suspense` | `Loading` |
 | `JSX` 型 from `react` | from `@solidjs/web` |
+
+`"use client"` ディレクティブは Solid では不要。コンポーネントはデフォルトでクライアント実行可能。
+
+---
+
+### `useState` → `createSignal`
+
+**Next.js では:** `useState` でローカル状態を持つ。更新は `setXxx(value)` または `setXxx(prev => ...)`。
+
+**Solid 2 では:** `createSignal` で `[getter, setter]` を得る。**読み取りは `getter()` を呼ぶ**（関数呼び出しが必須）。
+
+```tsx
+// app/components/Articles.tsx（移行前）
+const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+const [currentPage, setCurrentPage] = useState(1);
+
+// src/components/Articles.tsx（移行後）
+const [selectedTagIds, setSelectedTagIds] = createSignal<number[]>([]);
+const [currentPage, setCurrentPage] = createSignal(1);
+```
+
+JSX 内の参照も `isScrolled` → `isScrolled()` に変わる。
+
+```tsx
+// Before
+className={`... ${isScrolled ? "p-3" : ""}`}
+
+// After
+class={`... ${isScrolled() ? "p-3" : ""}`}
+```
+
+---
+
+### `useEffect` → `onSettled`
+
+**Next.js では:** `useEffect(() => { ...; return cleanup }, [deps])` でマウント後の副作用とクリーンアップを書く。
+
+**Solid 2 では:** `onSettled` がマウント完了後に一度走る。return で cleanup を返す。依存配列は不要（リアクティブな値は関数内で `foo()` として読む）。
+
+```tsx
+// app/components/Header.tsx（移行前）
+useEffect(() => {
+  const onScroll = () => setIsScrolled(window.scrollY > 10);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+}, []);
+
+// src/components/Header.tsx（移行後）
+onSettled(() => {
+  if (typeof window === "undefined") return;
+  const onScroll = () => setIsScrolled(window.scrollY > 10);
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+  return () => window.removeEventListener("scroll", onScroll);
+});
+```
+
+SSR 時に `window` が無いので、`typeof window === "undefined"` のガードを足した。
+
+---
+
+### `useRef` → `let` + `ref`
+
+**Next.js では:** `useRef<HTMLDivElement>(null)` で DOM 参照を保持し、`ref.current` でアクセスする。
+
+**Solid 2 では:** コンポントスコープの `let el` に `ref={el}` で代入する。`.current` は無い。
+
+```tsx
+// Before
+const containerRef = useRef<HTMLDivElement>(null);
+// ...
+if (containerRef.current) observer.observe(containerRef.current);
+
+// After（AnimatedText.tsx）
+let containerEl: HTMLDivElement | undefined;
+// ...
+<div ref={containerEl} class="flex ...">
+```
+
+---
+
+### `className` → `class`
+
+**Next.js では:** React の慣習で `className` を使う。`style` のキーは camelCase（`backgroundImage`）。
+
+**Solid 2 では:** HTML と同じ `class`。`style` のキーは kebab-case も可（`"background-image"`）。
+
+```tsx
+// app/page.tsx（移行前）
+<main className="min-h-screen mx-auto px-4" style={{ backgroundImage: "url(...)" }}>
+
+// src/routes/index.tsx（移行後）
+<main class="min-h-screen mx-auto px-4" style={{ "background-image": "url(...)" }}>
+```
+
+---
+
+### `next/image` → `<img>`
+
+**Next.js では:** `<Image>` で最適化・`priority`・`width`/`height` を宣言する。
+
+**Solid 2 では:** 通常の `<img>`。このプロジェクトは静的 SVG 中心のため、最適化レイヤは不要と判断した。
+
+```tsx
+// app/components/Header.tsx（移行前）
+import Image from "next/image";
+<Image src="/images/header-genai-logo.svg" alt="..." width={204} height={40} priority className="..." />
+
+// src/components/Header.tsx（移行後）
+<img src="/images/header-genai-logo.svg" alt="..." width={204} height={40} class="..." />
+```
+
+---
+
+### `metadata` export → `@solidjs/meta`
+
+**Next.js では:** `app/layout.tsx` で `export const metadata: Metadata = { ... }` を宣言する。フレームワークが `<head>` に注入する。
+
+**Solid 2 では:** `App.tsx` の JSX 内に `<Title>` / `<Meta>` を並べる。Solid 2 では `MetaProvider` も不要。
+
+```tsx
+// app/layout.tsx（移行前）
+export const metadata: Metadata = {
+  title: "GenAi TECH BLOG | ...",
+  description: "...",
+  verification: { google: "D0Xa3wjc9_..." },
+};
+
+// src/App.tsx（移行後）
+import { Meta, Title } from "@solidjs/meta";
+<Title>{siteTitle}</Title>
+<Meta name="description" content={siteDescription} />
+<Meta name="google-site-verification" content="D0Xa3wjc9_..." />
+```
+
+---
+
+### `NEXT_PUBLIC_*` → `VITE_*`
+
+**Next.js では:** クライアントに露出する env は `NEXT_PUBLIC_` プレフィックス。`process.env.NEXT_PUBLIC_SUPABASE_URL` で読む。
+
+**Solid 2 では:** Vite の `VITE_` プレフィックス。`import.meta.env.VITE_*` が基本。サーバー関数内では `process.env` にフォールバックする。
+
+```ts
+// lib/supabase/static.ts（移行前）
+createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+// src/lib/supabase/client.ts（移行後）
+function env(name: "VITE_SUPABASE_URL" | "VITE_SUPABASE_ANON_KEY"): string {
+  const fromVite = import.meta.env[name];
+  if (fromVite) return fromVite;
+  return process.env[name] ?? "";
+}
+```
+
+型定義は `src/vite-env.d.ts` の `ImportMetaEnv` に追加する。
+
+---
+
+### `Suspense` → `Loading`
+
+**Next.js / SolidStart 1.x では:** `<Suspense fallback={...}>` で未解決 UI を待つ。
+
+**Solid 2 では:** `solid-js` の `<Loading>` に置き換え。`fallback` prop は無く、子が未解決の間はデフォルトのローディング UI が出る。
+
+```tsx
+// src/app.tsx（SolidStart 1.x、移行前）
+import { Suspense } from "solid-js";
+<Suspense>{props.children}</Suspense>
+
+// src/App.tsx（Solid 2、移行後）
+import { Loading } from "solid-js";
+<Loading>{props.children}</Loading>
+```
+
+トップページのデータ取得も同様。`createMemo(() => getHomeData())` の結果が未解決の間、`<Loading>` がフォールバックになる（詳細は次節）。
+
+---
+
+### `JSX` 型
+
+**Next.js / React では:** `import type { ReactNode } from "react"` や `JSX.Element`。
+
+**Solid 2 では:** DOM JSX の型は `@solidjs/web` から import する（`solid-js` ではない）。
+
+```tsx
+// Before
+import type { ReactNode } from "react";
+const FooterText = ({ children }: { children: ReactNode }) => { ... };
+
+// After（Footer-text.tsx）
+import type { JSX } from "@solidjs/web";
+const FooterText = (props: { children: JSX.Element }) => { ... };
+```
+
+---
 
 ### データ取得
 
