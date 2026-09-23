@@ -514,12 +514,6 @@ export function invalidatePageCache() { entry = null; }
 - **`solid-migration-assistant`**: 移行前に変更点を洗い出し、移行後に検出ゼロを確認できた
 - **自前 TTL**: Next.js ISR と同等のキャッシュ戦略を start mode でも維持できた
 
-### ハマりどころ
-
-- **SolidStart と start mode の名前**: 別物。Solid 2 移行では start mode が正本
-- **Tailwind + Vite 8 SSR**: PostCSS 単体が壊れたため `@tailwindcss/vite` を追加
-- **Vercel**: start mode の Node サーバ契約を自分で載せる必要がある
-
 ## まとめ
 
 tech-blog は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start mode** へ直接移行した。
@@ -528,6 +522,5 @@ tech-blog は **Next.js 16 App Router** から **Solid 2.0 RC + Vite start mode*
 
 ## 参考リンク
 
-- [org-genai/tech-blog](https://github.com/org-genai/tech-blog)
 - [Solid 2.0 Migration Guide](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/MIGRATION.md)
 - [Solid 2.0 RC: The Big Reveal](https://www.solidjs.com/blog/solid-2-0-rc-the-big-reveal)
