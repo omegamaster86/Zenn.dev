@@ -1,5 +1,5 @@
 ---
-title: "Next.js から Solid 2 start mode へ — tech-blog 移行記"
+title: "Next.js から Solid 2 start mode へ — tech-blog 移行してみたんじゃ"
 emoji: "🔄"
 type: tech
 topics: [nextjs, solidjs, supabase, vercel, migration]
