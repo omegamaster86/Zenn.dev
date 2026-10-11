@@ -50,7 +50,7 @@ https://tech.sompo.io/entry/2025/06/20/082235
 https://note.com/kaonavi/n/nb0e447031b15
 https://speakerdeck.com/noriakioji/kokyaku-no-youbou-ha-2-jijouhoudearu-antena-o-haru-fde-no-kouzouron
 
-# 何を学ぶ？
+# じゃあ、何を伸ばす？
 
 前の節で書いた「顧客理解・課題解決」は、いきなり身につくものではないので、**何を学ぶか**を意識しておくのが大事だと思います。
 新しいフレームワークを学ぶのももちろん良いですが、**AIが速くしても代替しにくい能力**に時間を割く方が優先な気がします。
