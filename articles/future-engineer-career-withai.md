@@ -3,9 +3,9 @@ title: "AI時代、エンジニアは実装者から何になるのか"
 emoji: "🧭"
 type: "idea"
 topics: ["エンジニア", "キャリア", "AI", "AI駆動開発"]
-published: false
-# published_at: 2026-10-11 10:00
-# publication_name: "genai"
+published: true
+published_at: 2026-10-12 12:00
+publication_name: "genai"
 ---
 
 # 初めに
