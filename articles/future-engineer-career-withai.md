@@ -49,7 +49,6 @@ https://tech.sompo.io/entry/2025/06/20/082235
 
 上記をしっかり見極めないといけません。そして顧客会議に参加し1次情報を取得する。
 今まではPMが行ってきた内容だと思いますが実装をAIがやる以上、エンジニアが価値提供をするために考えないといけません。FDE的な動きがほぼ全てのエンジニアに求められています。
-下記にも同じようなことが記載されています。
+下記にも似たようなことが記載されています。
 https://note.com/kaonavi/n/nb0e447031b15
 https://speakerdeck.com/noriakioji/kokyaku-no-youbou-ha-2-jijouhoudearu-antena-o-haru-fde-no-kouzouron
-
