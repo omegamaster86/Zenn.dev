@@ -48,7 +48,7 @@ https://tech.sompo.io/entry/2025/06/20/082235
 今まではPMが行ってきた内容だと思いますが実装をAIがやる以上、エンジニアが価値提供をするために考えないといけません。FDE的な動きがほぼ全てのエンジニアに求められています。
 下記にも似たようなことが記載されています。
 https://note.com/loglass_post/n/nc2b02e415407
-kokyaku-no-youbou-ha-2-jijouhoudearu-antena-o-haru-fde-no-kouzouron
+https://speakerdeck.com/noriakioji/kokyaku-no-youbou-ha-2-jijouhoudearu-antena-o-haru-fde-no-kouzouron
 
 # じゃあ、何を伸ばす？
 
