@@ -53,13 +53,72 @@ UAT環境にてクライアント様から微修正を依頼されたので、�
 5. アプリに有料コンテンツはありますか?ある場合、誰が支払いますか?たとえば、ユーザーはアカウントを開設したり、アプリの特定の機能を使用したりするために料金を支払いますか?
 ```
 確かに特定の組織の人が回答できるアプリだったので、指摘はあっている…ならなんで「1回目でその指摘無かったんだ？」という気持ちもありつつ、どうしようもないので、非公開配信に切り替えることにしました。
-非公開アプリの申請場所はメッセージのサポート欄にURLの記載があるので、そこから申請してください。
+却下メッセージのサポート欄にも案内がありますが、公式の入口は [非公開配布のリクエストフォーム](https://developer.apple.com/contact/request/unlisted-app/) です（Apple Developer アカウントへのサインインが必要）。
+
+# 非公開（Unlisted）配布の申請手順
+Apple公式ドキュメント（[Unlisted app distribution](https://developer.apple.com/support/unlisted-app-distribution/)）をもとに、手順だけ整理します。うちのケースとだいたいこの流れでした。
+
+## 事前に知っておくこと
+
+非公開リンクの申請には、**すでに App Store にあるアプリ**か、**本番配布向けの完成版として App Review に提出済み**であることが条件です。ベータや未提出のままだと却下されます。
+
+補足として、Unlisted でも次のような配布が可能です（公式の説明どおり）。
+
+- App Store が対応している地域すべてで配布できる
+- 管理対象デバイス（managed）・非管理デバイス（unmanaged）の両方に配れられる
+- Apple Business Manager / Apple School Manager からもアクセスできる
+
+## 申請の流れ
+
+1. **Apple Developer Program に登録する**  
+   App Store Connect を使うには会員である必要があります。
+
+2. **App Store Connect でアプリのレコードを作る**  
+   ビルドを上げる前にレコードを作成します。**配布方法は最初「Public（公開配布）」**にします。非公開リンクは、公開配布のアプリを Unlisted に変更する形で申請します。  
+   ※ すでに ABM/ASM 向けの Private 配布で承認済みのレコードでは、この手順では申請できません（後述の注意点を参照）。
+
+3. **完成版ビルドを App Review に提出する**  
+   Review Notes（審査メモ）に、**非公開配布（Unlisted）を予定している**旨を書いておくとよいです。
+
+4. **リクエストフォームから申請する**  
+   [非公開配布のリクエストフォーム](https://developer.apple.com/contact/request/unlisted-app/) から申請します。  
+   App Store Connect 上の配布設定の操作には、Account Holder・Admin・App Manager のいずれかのロールが必要です。
+
+5. **承認後、配布方法が Unlisted になる**  
+   承認されると、アプリレコードの **Pricing and Availability（価格および配信状況）** で配布方法が **Unlisted App** に変わり、以降のバージョンにも適用されます。App Store および ABM/ASM からアクセスするためのリンクが発行されます。すでに App Store で公開済みなら、既存のリンクはそのまま使える場合があります。
+
+6. **通常どおりリリースし、リンクを共有する**  
+   承認後も、いつものリリース手順を続けて問題ありません。
+
+## App Store Connect での確認手順
+
+申請前に、次を確認しておくと安心です。
+
+1. **アプリ** で対象アプリを選ぶ
+2. サイドバーの **価格および配信状況（Pricing and Availability）** を開く
+3. **アプリの配信方法（App Distribution Methods）** が **Public** になっていることを確認する
+4. まだなら審査に提出する
+5. 上記フォームからリクエストを提出する
 
 # 非公開申請後
-非公開アプリの申請が通った後はapp store connectの収益化→価格および配信状況→アプリの配信方法に非公開アプリのURLが記載されているので、頑張って配布していきます。
+非公開アプリの申請が通ったら、App Store Connect の **収益化 → 価格および配信状況 → アプリの配信方法** に非公開アプリ用の URL が表示されます。QR コードや社内共有など、配布手段はプロジェクト次第です。
 
-その後審査に落ちたアプリ（「非公開設定しろ」と指摘があったやつ）を再申請していきます。
-その後審査が通れば、非公開アプリのURLからアプリがダウンロードできる画面に遷移するので無事終了です。
+審査で「一般公開ではなく非公開を検討して」と指摘されたビルドは、Unlisted 承認後に **再申請** します。審査が通れば、非公開用 URL から App Store のダウンロード画面に遷移でき、一連の流れは完了です。
+
+# 申請・運用時の注意点
+
+- App Review に未提出のアプリ、またはベータ／プレリリース状態のアプリは、非公開配布の申請が却下される
+- すでに ABM/ASM で特定組織向けにプライベート配布している場合は、**新しいアプリレコード**を作り、バイナリをアップロードし、配布方法を **App Store で公開（Public）** にしてから申請する必要がある
+- 一度承認されると配布方法は原則変更できない。例外として **Public → Unlisted** の変更は可能。Private と Public の切り替えは新しいアプリレコードが必要
+- URL 短縮を使う場合は、短縮リンクが正しく解決されるかテストする
+- リンクを知っていれば誰でも入手できるため、アプリ内で不正利用を防ぐ仕組みを検討する
+
+# 参考リンク
+
+- [Unlisted app distribution](https://developer.apple.com/support/unlisted-app-distribution/)（概要・申請条件・配布時の注意）
+- [非公開配布のリクエストフォーム](https://developer.apple.com/contact/request/unlisted-app/)
+- [Set distribution methods](https://developer.apple.com/help/app-store-connect/manage-your-apps-availability/set-distribution-methods)（価格および配信状況での配布方法）
+- [Add a new app](https://developer.apple.com/help/app-store-connect/create-an-app-record/add-a-new-app)（アプリレコードの作成）
 
 # 最後に
 今回はなかなかする機会がないアプリ申請に+して非公開設定に関する記載をまとめていきました。
