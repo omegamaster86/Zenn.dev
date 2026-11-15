@@ -1,0 +1,20 @@
+title: "Next.js × Supabase で情報漏えいを防ぐための設計ガイド"
+summary: "ブラウザから直接叩ける Supabase API を前提に、RLS・GRANT・Server Action・鍵管理まで多層で守る実践ガイド"
+cover_image: "/images/nextjs_supabase_security/cover.png"
+topics: ["nextjs", "supabase", "security", "postgresql"]
+published: false
+price: 0
+publication_name: "genai"
+chapters:
+  - intro
+  - misconceptions
+  - premise
+  - rls_basics
+  - grant_views_definer
+  - multitenancy_mfa
+  - secret_key
+  - server_actions
+  - waf_rate_limit
+  - operations
+  - toc_vs_tob
+  - checklist
