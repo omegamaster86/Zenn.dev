@@ -2,9 +2,50 @@
 title: "GRANT・ビュー・security definer"
 ---
 
-## GRANT を絞る（RLS とは別のレイヤー）
+## GRANT とは
 
-GRANT は「そのロールがテーブル・ビュー・関数に到達できるか」、RLS は「どの行に触れるか」を決めます。両方を設定します。
+**GRANT** は PostgreSQL が持つ「誰（ロール）が、どのオブジェクトに、どの操作をしてよいか」を付与する SQL です。権限を外すのが **REVOKE** です。RLS のポリシー作成より前に、オブジェクト単位で通れるかどうかが決まります。
+
+対象になるのは主に次のとおりです。
+
+| 種類 | よく使う権限 | 意味（ざっくり） |
+| --- | --- | --- |
+| テーブル・ビュー | `SELECT` `INSERT` `UPDATE` `DELETE` | 行の読み書き |
+| シーケンス | `USAGE` `SELECT` `UPDATE` | シリアル列の採番 |
+| 関数 | `EXECUTE` | RPC や RLS からの呼び出し |
+
+Supabase からブラウザ経由で DB に届くリクエストは、だいたい次のロールになります（前提章の publishable key・JWT の説明と対応します）。
+
+- **`anon`** — 未ログイン、または JWT が付かないリクエスト
+- **`authenticated`** — ログイン後、ユーザーの JWT が付いたリクエスト
+- **`service_role`** — secret key 用。**RLS を迂回する**のでクライアントには載せない
+
+GRANT と RLS は別レイヤーです。両方そろって初めて意図どおり動きます。
+
+| レイヤー | 決めること |
+| --- | --- |
+| GRANT / REVOKE | そのロールがテーブル・ビュー・関数に**到達できるか**、**どの操作**ができるか |
+| RLS（ポリシー） | 到達できたうえで、**どの行**に触れるか |
+
+混同しやすいパターンは次のとおりです。
+
+- GRANT はあるが RLS で行が絞られる → 権限はあるのに 0 行（正常）
+- RLS は正しいが GRANT が無い → オブジェクト自体に到達できずエラー
+- RLS を有効にしたがポリシーが無い → デフォルト拒否（前章参照）
+
+明示的に付ける例です。
+
+```sql
+-- authenticated だけが profiles を読める（行の絞り込みは別途 RLS）
+grant select on table public.profiles to authenticated;
+
+-- RLS ポリシー内から呼ぶヘルパー関数
+grant execute on function public.is_org_member(uuid) to authenticated;
+```
+
+方針は **必要なロールに、必要な操作だけ** です。特に `public` スキーマは Data API の公開対象になりやすいので、まず権限を絞り、RLS で行を守る順で考えます。
+
+## GRANT を絞る（RLS とは別のレイヤー）
 
 既存のプロジェクトでは、`public` に作った新しいテーブルや関数に `anon` / `authenticated` / `service_role` への権限が自動で付きます。意図せず公開されるのを防ぐなら、ダッシュボードの Data API 設定で新しいテーブルの自動公開をオフにするか、既定の権限を剥奪します。
 
