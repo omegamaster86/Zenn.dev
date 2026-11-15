@@ -21,6 +21,7 @@ Next.js と Supabase の組み合わせは手軽に本番まで持っていけ�
 - RLS・GRANT・ビュー・`security definer` 関数の落とし穴と、コードでの対策
 - secret key の安全な扱い方と、Server Action での認証・認可
 - WAF/CDN やレート制限で「できること」と「できないこと」
+- マルチテナント（membership）での企業単位の分離と、管理者・重要操作向けの MFA
 - toC と toB で変わるリスクと対策、最初にやるべきチェックリスト
 
 ## 結論

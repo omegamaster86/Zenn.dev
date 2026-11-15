@@ -13,3 +13,11 @@ Supabase のクライアントは、publishable key（anon key）を使ってブ
 | 鍵・運用 | 鍵と運用者アカウントの保護、検知と対応 | secret key の管理、管理者 MFA、ログ監視、対応手順 |
 
 目標は、**Next.js に不備があっても、他人のデータは DB 側で返らない**状態です。
+
+## 補足publishable key（anon key）とは
+
+- **名前**: ダッシュボードでは publishable key（`sb_publishable_...`）。環境変数や古い記事では `SUPABASE_ANON_KEY` や anon key と表記されることが多い。**クライアント向けの同系統の鍵**を指す。
+- **役割**: どの Supabase プロジェクトへのリクエストかを識別する。付与される Postgres ロールは基本 `anon` で、単体では管理者権限にならない。
+- **ログイン後**: ブラウザのクライアントは publishable key に加えて **ユーザーの JWT（アクセストークン）** を載せる。API はその JWT を見て `authenticated` として扱い、RLS は `auth.uid()` など **トークン由来の identity** で行を絞る。
+- **未ログイン**: JWT が無い（または anon のままの）リクエストは `anon` ロール。ここで GRANT・RLS・Storage ポリシーが許した範囲だけが可能になる。
+- **secret key との違い**: secret key（旧 service_role）は RLS を迂回する。**ブラウザに載せる鍵の反対側**で、後述の「secret key の扱い」で扱う。
