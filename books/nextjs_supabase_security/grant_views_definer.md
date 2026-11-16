@@ -93,13 +93,69 @@ alter view public.my_orders set (security_invoker = true);
 
 Postgres 14 以前では、`anon` / `authenticated` からビューの権限を外すか、ビューを公開しないスキーマに移します。
 
+## security definer とは
+
+PostgreSQL の関数には、**中の SQL を誰の権限で実行するか**を決めるモードがあります。ビューの `security_invoker`（前節）と同じ発想で、関数版を覚えると整理しやすいです。
+
+| モード | 中の SQL が動く権限 | テーブルへの RLS |
+| --- | --- | --- |
+| **`security invoker`**（Postgres 15 以降の既定） | **呼び出したユーザー**（例：`authenticated`） | そのユーザー向けのポリシーがかかる |
+| **`security definer`** | **関数の所有者**（マイグレーションなら多くは `postgres`） | 所有者の目で見える。所有者がテーブルオーナーだと RLS を通過し、行を広く読める |
+
+イメージです。
+
+- **invoker** — ユーザー本人が SQL を書いて実行しているのと同じ。GRANT と RLS の両方がそのユーザー基準。
+- **definer** — 関数の中だけ一時的に「作成者の帽子」をかぶる。呼び出し元に `memberships` の SELECT を GRANT していなくても、関数の中からは読めることがある。
+
+RLS のポリシー式の中で、別テーブル（所属テーブルなど）を参照したいときに `security definer` を使うことがあります。invoker のままだと「ポリシー評価 → テーブル参照 → またポリシー評価」となり、**再帰や期待外の拒否**が起きやすいからです。definer にすると、関数の中だけ作成者の権限で所属行を読み、**`auth.uid()` などで呼び出し元を絞った結果**を返せます。
+
+一方で definer は**権限昇格の入口**になります。
+
+- RLS は**関数本体**にはかからない（関数は行テーブルではない）。
+- `public` に置き `grant execute ... to authenticated` すると、ブラウザから **Data API の RPC** で誰でも呼べる。
+- 関数の中で `auth.uid()` を確認せずに秘密の行を返すと、RLS で守っていたデータが一気に漏れる。
+
+安全に使うときの最低ラインは次のとおりです。
+
+```sql
+-- ✅ RLS ポリシーからだけ使うヘルパー（RPC には出さない）
+create schema if not exists private;
+
+create or replace function private.org_role(_org_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select m.role
+  from public.memberships m
+  where m.org_id = _org_id
+    and m.user_id = (select auth.uid());  -- 呼び出し元を必ず絞る
+$$;
+
+revoke all on function private.org_role(uuid) from public;
+grant execute on function private.org_role(uuid) to authenticated;
+```
+
+```sql
+-- ❌ public に definer を置き、中身で呼び出し元を検証しない
+create function public.leak_all_profiles()
+returns setof public.profiles
+language sql
+security definer
+as $$ select * from public.profiles; $$;
+
+grant execute on function public.leak_all_profiles() to authenticated;
+-- → JWT を持つユーザーなら誰でも全行取得し得る
+```
+
 ## security definer 関数は公開スキーマに置かない
 
-`security definer` 関数は作成者の権限で動くため RLS を迂回できます。RLS は関数そのものには適用されないので、公開スキーマに置くと Data API の RPC から誰でも呼べる入口になり得ます。
+運用ルールは次のとおりです（toB の所属チェックの流れは次章）。
 
-- Data API で公開しないスキーマ（例：`private`）に置く。
-- `execute` は必要なロールにだけ付与する。
-- 権限を上げる処理の中でも、呼び出し元が誰で、その操作を許されているかを確認する。
-- `set search_path = ''` を付け、テーブルはスキーマ名付きで参照する。
+- Data API で公開しないスキーマ（例：`private`）に置く。ダッシュボードの API 設定で `private` を公開スキーマに**追加しない**。
+- `execute` は必要なロールにだけ付与する（`revoke ... from public` を忘れない）。
+- definer の中でも、**`auth.uid()` や引数で「この操作を許すか」**を必ず確認する。作成者権限は「裏で参照するため」であって、無制限にデータを返すためではない。
+- `set search_path = ''` を付け、テーブルは `public.memberships` のようにスキーマ名付きで参照する（search_path 乗っ取り対策）。
 
-具体例は次章の toB の所属テーブルの例で示します。
